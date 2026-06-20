@@ -1,0 +1,2793 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>同一ID斜め直線ステアリング課題 実験システム</title>
+    <script src="steering_experiment_config.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --panel: #ffffff;
+        --ink: #172033;
+        --muted: #647086;
+        --line: #d8dee9;
+        --line-strong: #b8c1d1;
+        --primary: #1f6feb;
+        --primary-dark: #1754b5;
+        --green: #16794c;
+        --amber: #9a6700;
+        --red: #c43a31;
+        --corridor: #eaf1ff;
+        --corridor-border: #2f68c7;
+        --track: #172033;
+        --outside: #d83b32;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
+          "Yu Gothic", Meiryo, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 320px;
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        min-height: 38px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      button:hover:not(:disabled) {
+        border-color: var(--primary);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+
+      .primary-button {
+        border-color: var(--primary);
+        background: var(--primary);
+        color: #fff;
+        font-weight: 700;
+      }
+
+      .primary-button:hover:not(:disabled) {
+        background: var(--primary-dark);
+      }
+
+      .danger-button {
+        border-color: #f0b7b3;
+        background: #fff7f6;
+        color: var(--red);
+      }
+
+      .ghost-button {
+        background: #f9fbff;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .start-screen {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+      }
+
+      .start-layout {
+        width: min(1120px, 100%);
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+      }
+
+      .start-panel,
+      .briefing-panel,
+      .sidebar,
+      .stage,
+      .topbar,
+      .modal-box {
+        border: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .start-panel,
+      .briefing-panel,
+      .modal-box {
+        border-radius: 8px;
+      }
+
+      .start-panel {
+        padding: 24px;
+      }
+
+      .briefing-panel {
+        padding: 22px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 10px;
+        font-size: 1.55rem;
+        line-height: 1.35;
+      }
+
+      h2 {
+        margin-bottom: 12px;
+        font-size: 1.15rem;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+      }
+
+      .lead {
+        margin-bottom: 18px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field label {
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
+      .field input,
+      .field select,
+      .field textarea {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .form-actions {
+        display: grid;
+        gap: 10px;
+        margin-top: 4px;
+      }
+
+      .mode-toggle {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .condition-toggle {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .mode-option {
+        position: relative;
+      }
+
+      .mode-option input,
+      .condition-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .mode-card,
+      .condition-card {
+        min-height: 76px;
+        display: grid;
+        align-content: center;
+        gap: 4px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 10px;
+        background: #fff;
+        cursor: pointer;
+      }
+
+      .mode-card b,
+      .mode-card span,
+      .condition-card b,
+      .condition-card span {
+        display: block;
+      }
+
+      .mode-card span,
+      .condition-card span {
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.45;
+      }
+
+      .mode-option input:checked + .mode-card,
+      .condition-option input:checked + .condition-card {
+        border-color: var(--primary);
+        background: #eef5ff;
+        box-shadow: inset 0 0 0 1px var(--primary);
+      }
+
+      .form-error {
+        margin: 0;
+        color: var(--red);
+        font-size: 0.84rem;
+        line-height: 1.5;
+      }
+
+      .notice {
+        margin: 14px 0 0;
+        padding: 10px 12px;
+        border-left: 4px solid var(--primary);
+        background: #eef5ff;
+        color: #21436f;
+        line-height: 1.6;
+      }
+
+      .briefing-list {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding-left: 1.35rem;
+        color: #263044;
+        line-height: 1.65;
+      }
+
+      .experiment-screen {
+        height: 100vh;
+        overflow: hidden;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 12px 16px;
+        border-width: 0 0 1px;
+      }
+
+      .status-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .chip {
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 5px 9px;
+        background: #f9fbff;
+        color: #263044;
+        font-size: 0.88rem;
+        white-space: nowrap;
+      }
+
+      .chip strong {
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .toolbar button {
+        padding: 0 12px;
+      }
+
+      .workspace {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 340px minmax(0, 1fr);
+      }
+
+      .experiment-screen.task-only .workspace {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .experiment-screen.task-only .sidebar {
+        display: none;
+      }
+
+      .sidebar {
+        min-height: 0;
+        overflow: auto;
+        border-width: 0 1px 0 0;
+        padding: 16px;
+      }
+
+      .side-section {
+        padding: 0 0 18px;
+        margin-bottom: 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .side-section:last-child {
+        border-bottom: 0;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .progress-stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .progress-row {
+        display: grid;
+        gap: 6px;
+      }
+
+      .progress-row span {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .progress-track {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e8edf6;
+      }
+
+      .progress-fill {
+        width: 0%;
+        height: 100%;
+        background: var(--primary);
+        transition: width 140ms ease;
+      }
+
+      .condition-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .condition-item {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 9px;
+        background: #fff;
+      }
+
+      .condition-item.is-current {
+        border-color: var(--primary);
+        background: #f3f8ff;
+      }
+
+      .condition-item.is-assigned {
+        border-left: 4px solid var(--green);
+      }
+
+      .condition-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 4px;
+        font-weight: 700;
+      }
+
+      .condition-meta,
+      .small-muted {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 7px 4px;
+        text-align: right;
+      }
+
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+
+      th {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .log-list {
+        display: grid;
+        gap: 8px;
+        max-height: 260px;
+        overflow: auto;
+      }
+
+      .log-entry {
+        border-left: 4px solid var(--line-strong);
+        padding: 7px 8px;
+        background: #f9fbff;
+        font-size: 0.82rem;
+        line-height: 1.5;
+      }
+
+      .log-entry.success {
+        border-color: var(--green);
+      }
+
+      .log-entry.error {
+        border-color: var(--red);
+      }
+
+      .log-entry.retry {
+        border-color: var(--amber);
+      }
+
+      .stage {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        border-width: 0;
+        background: #eef2f8;
+      }
+
+      .canvas-shell {
+        min-height: 0;
+        overflow: auto;
+        padding: 16px;
+      }
+
+      #taskCanvas {
+        width: 100%;
+        height: calc(100vh - 146px);
+        min-height: 470px;
+        display: block;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: #ffffff;
+        touch-action: none;
+      }
+
+      .message-bar {
+        min-height: 54px;
+        border-top: 1px solid var(--line);
+        padding: 12px 16px;
+        background: #fff;
+        color: #263044;
+        line-height: 1.5;
+      }
+
+      .message-bar[data-tone="good"] {
+        color: var(--green);
+      }
+
+      .message-bar[data-tone="warn"] {
+        color: var(--amber);
+      }
+
+      .message-bar[data-tone="bad"] {
+        color: var(--red);
+      }
+
+      .questionnaire-panel {
+        min-height: 0;
+        overflow: auto;
+        padding: 22px;
+        background: var(--bg);
+      }
+
+      .questionnaire-card {
+        width: min(760px, 100%);
+        margin: 0 auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 22px;
+        background: var(--panel);
+      }
+
+      .questionnaire-grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .questionnaire-grid textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      .rating-row {
+        display: grid;
+        gap: 8px;
+      }
+
+      .rating-scale {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+      }
+
+      .rating-scale label {
+        min-height: 42px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+      }
+
+      .rating-scale input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .rating-scale label:has(input:checked) {
+        border-color: var(--primary);
+        background: #eef5ff;
+        color: var(--primary-dark);
+        font-weight: 700;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgb(23 32 51 / 0.35);
+      }
+
+      .modal-box {
+        width: min(520px, 100%);
+        padding: 22px;
+        box-shadow: 0 24px 80px rgb(23 32 51 / 0.22);
+      }
+
+      .modal-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 18px;
+      }
+
+      .modal-actions button {
+        padding: 0 14px;
+      }
+
+      @media (max-width: 980px) {
+        .start-layout,
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          max-height: 44vh;
+          border-width: 0 0 1px;
+        }
+
+        .experiment-screen.task-only .sidebar {
+          display: none;
+        }
+
+        .topbar {
+          grid-template-columns: 1fr;
+        }
+
+        .toolbar {
+          justify-content: flex-start;
+        }
+
+        #taskCanvas {
+          height: min(58vh, 620px);
+          min-height: 360px;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .start-screen {
+          padding: 14px;
+        }
+
+        .topbar,
+        .sidebar,
+        .canvas-shell,
+        .message-bar {
+          padding-left: 10px;
+          padding-right: 10px;
+        }
+
+        .toolbar button {
+          flex: 1 1 45%;
+        }
+
+        .mode-toggle,
+        .condition-toggle,
+        .rating-scale {
+          grid-template-columns: 1fr;
+        }
+
+        .chip {
+          width: 100%;
+          justify-content: space-between;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app">
+      <section id="startScreen" class="start-screen">
+        <div class="start-layout">
+          <section class="start-panel" aria-labelledby="startTitle">
+            <h1 id="startTitle">同一ID斜め直線ステアリング課題</h1>
+            <p class="lead">
+              実験種別と実験条件を選び，選択した条件をC1からC4の順に提示します。
+            </p>
+            <form id="participantForm" class="form-grid">
+              <div class="field">
+                <label>実験種別</label>
+                <div class="mode-toggle" role="radiogroup" aria-label="実験種別">
+                  <label class="mode-option">
+                    <input id="modeMain" type="radio" name="experimentMode" value="main" checked />
+                    <span class="mode-card">
+                      <b>本実験</b>
+                      <span>反復・事後・アンケートまで実施</span>
+                    </span>
+                  </label>
+                  <label class="mode-option">
+                    <input id="modePilot" type="radio" name="experimentMode" value="pilot" />
+                    <span class="mode-card">
+                      <b>予備実験</b>
+                      <span>選択条件を300試行ずつ実施</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>実験条件</label>
+                <div id="conditionToggleGroup" class="condition-toggle" role="group" aria-label="実験条件"></div>
+                <p id="conditionSelectionError" class="form-error hidden">
+                  実験条件を1つ以上選択してください。
+                </p>
+              </div>
+              <div class="field">
+                <label for="participantId">参加者ID</label>
+                <input id="participantId" name="participantId" autocomplete="off" required />
+              </div>
+              <div class="field">
+                <label for="age">年齢</label>
+                <input id="age" name="age" type="number" min="1" max="120" required />
+              </div>
+              <div class="field">
+                <label for="handedness">利き手</label>
+                <select id="handedness" name="handedness" required>
+                  <option value="">選択してください</option>
+                  <option value="right">右手</option>
+                  <option value="left">左手</option>
+                  <option value="both">両手</option>
+                  <option value="other">その他</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="mouseExperience">日常的なマウス使用経験</label>
+                <select id="mouseExperience" name="mouseExperience" required>
+                  <option value="">選択してください</option>
+                  <option value="daily">ほぼ毎日</option>
+                  <option value="weekly">週に数回</option>
+                  <option value="rarely">ほとんど使わない</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button class="primary-button" type="submit">実験開始</button>
+              </div>
+            </form>
+            <p class="notice">
+              保存はブラウザ上で行われます。実験終了時または途中終了時にCSVまたはJSONをダウンロードしてください。
+            </p>
+          </section>
+
+          <section class="briefing-panel" aria-labelledby="briefingTitle">
+            <h2 id="briefingTitle">実験前説明</h2>
+            <ol class="briefing-list">
+              <li>開始円の内側でポインタを押すと計測が始まります。</li>
+              <li>表示された斜め直線の通路に沿って終了円まで移動し，終了円内でポインタを離してください。</li>
+              <li>通路からはみ出しても試行は継続し，逸脱情報が記録されます。</li>
+              <li>途中でポインタを離した場合は，同じ試行をやり直します。</li>
+              <li>ゴール直前でポインタを離した場合は，分析対象エラーとして記録されます。</li>
+              <li>本実験では100試行ごとに1分間の強制休憩があります。</li>
+              <li>予備実験では選択した条件を300試行ずつ行い，100試行ごとに自分のタイミングで再開します。</li>
+            </ol>
+          </section>
+        </div>
+      </section>
+
+      <section id="experimentScreen" class="experiment-screen hidden">
+        <header class="topbar">
+          <div class="status-strip" aria-live="polite">
+            <span class="chip"><strong>種別</strong><span id="modeChip">-</span></span>
+            <span class="chip"><strong>フェーズ</strong><span id="phaseChip">待機</span></span>
+            <span class="chip"><strong>条件</strong><span id="conditionChip">-</span></span>
+            <span class="chip"><strong>試行</strong><span id="trialChip">0 / 0</span></span>
+            <span class="chip"><strong>参加者</strong><span id="participantChip">-</span></span>
+          </div>
+          <div class="toolbar">
+            <button id="pauseButton" type="button" class="ghost-button">休憩</button>
+            <button id="resumeButton" type="button" class="ghost-button" disabled>再開</button>
+            <button id="abortTrialButton" type="button" class="ghost-button">試行中断</button>
+            <button id="endButton" type="button" class="danger-button">終了</button>
+            <button id="saveCsvButton" type="button">CSV保存</button>
+            <button id="saveJsonButton" type="button">JSON保存</button>
+          </div>
+        </header>
+
+        <div id="workspace" class="workspace">
+          <aside id="sidebarPanel" class="sidebar">
+            <section class="side-section">
+              <h2>進行状況</h2>
+              <div class="progress-stack">
+                <div id="pilotProgressRow" class="progress-row hidden">
+                  <span><b>予備試行</b><span id="pilotProgressText">0 / 300</span></span>
+                  <div class="progress-track"><div id="pilotProgressFill" class="progress-fill"></div></div>
+                </div>
+                <div id="practiceProgressRow" class="progress-row">
+                  <span><b>反復試行</b><span id="practiceProgressText">0 / 300</span></span>
+                  <div class="progress-track"><div id="practiceProgressFill" class="progress-fill"></div></div>
+                </div>
+                <div id="postProgressRow" class="progress-row">
+                  <span><b>事後試行</b><span id="postProgressText">0 / 100</span></span>
+                  <div class="progress-track"><div id="postProgressFill" class="progress-fill"></div></div>
+                </div>
+                <div id="questionnaireProgressRow" class="progress-row">
+                  <span><b>アンケート</b><span id="questionnaireProgressText">未回答</span></span>
+                  <div class="progress-track"><div id="questionnaireProgressFill" class="progress-fill"></div></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="side-section">
+              <h2>条件一覧</h2>
+              <div id="conditionList" class="condition-list"></div>
+            </section>
+
+            <section class="side-section">
+              <h2>集計</h2>
+              <div id="summaryTable"></div>
+            </section>
+
+            <section class="side-section">
+              <h2>ログ</h2>
+              <div id="logList" class="log-list"></div>
+            </section>
+          </aside>
+
+          <section class="stage">
+            <div class="canvas-shell">
+              <canvas id="taskCanvas" aria-label="斜め直線ステアリング課題キャンバス"></canvas>
+            </div>
+            <div id="messageBar" class="message-bar" data-tone="info">
+              開始円の内側で押して，終了円内でポインタを離してください。
+            </div>
+          </section>
+        </div>
+
+        <section id="questionnairePanel" class="questionnaire-panel hidden" aria-labelledby="questionnaireTitle">
+          <div class="questionnaire-card">
+            <h2 id="questionnaireTitle">実験後アンケート</h2>
+            <p class="lead">各項目について，1から5で回答してください。</p>
+            <form id="questionnaireForm" class="questionnaire-grid">
+              <div class="rating-row">
+                <label>操作のしやすさ</label>
+                <div class="rating-scale">
+                  <label><input type="radio" name="ease" value="1" required /><span>1</span></label>
+                  <label><input type="radio" name="ease" value="2" /><span>2</span></label>
+                  <label><input type="radio" name="ease" value="3" /><span>3</span></label>
+                  <label><input type="radio" name="ease" value="4" /><span>4</span></label>
+                  <label><input type="radio" name="ease" value="5" /><span>5</span></label>
+                </div>
+              </div>
+              <div class="rating-row">
+                <label>疲労感</label>
+                <div class="rating-scale">
+                  <label><input type="radio" name="fatigue" value="1" required /><span>1</span></label>
+                  <label><input type="radio" name="fatigue" value="2" /><span>2</span></label>
+                  <label><input type="radio" name="fatigue" value="3" /><span>3</span></label>
+                  <label><input type="radio" name="fatigue" value="4" /><span>4</span></label>
+                  <label><input type="radio" name="fatigue" value="5" /><span>5</span></label>
+                </div>
+              </div>
+              <div class="rating-row">
+                <label>課題の難しさ</label>
+                <div class="rating-scale">
+                  <label><input type="radio" name="difficulty" value="1" required /><span>1</span></label>
+                  <label><input type="radio" name="difficulty" value="2" /><span>2</span></label>
+                  <label><input type="radio" name="difficulty" value="3" /><span>3</span></label>
+                  <label><input type="radio" name="difficulty" value="4" /><span>4</span></label>
+                  <label><input type="radio" name="difficulty" value="5" /><span>5</span></label>
+                </div>
+              </div>
+              <div class="field">
+                <label for="questionnaireComment">自由記述</label>
+                <textarea id="questionnaireComment" name="comment" placeholder="気づいたことがあれば記入してください。"></textarea>
+              </div>
+              <div class="form-actions">
+                <button class="primary-button" type="submit">アンケートを完了</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div id="phaseModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="phaseModalTitle">
+      <section class="modal-box">
+        <h2 id="phaseModalTitle">次のフェーズ</h2>
+        <p id="phaseModalText" class="lead"></p>
+        <div class="modal-actions">
+          <button id="phaseModalButton" type="button" class="primary-button">次へ</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="breakModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="breakTitle">
+      <section class="modal-box">
+        <h2 id="breakTitle">休憩</h2>
+        <p id="breakText" class="lead">
+          ここで休憩できます。準備ができたら再開してください。
+        </p>
+        <p id="breakTimerText" class="small-muted"></p>
+        <div class="modal-actions">
+          <button id="modalResumeButton" type="button" class="primary-button">再開</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="endModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+      <section class="modal-box">
+        <h2 id="endTitle">実験終了</h2>
+        <p id="endText" class="lead">
+          記録済みの結果をCSVまたはJSONで保存してください。
+        </p>
+        <div class="modal-actions">
+          <button id="modalSaveCsvButton" type="button">CSV保存</button>
+          <button id="modalSaveJsonButton" type="button">JSON保存</button>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        const Config = window.SteeringExperimentConfig;
+
+        if (!Config) {
+          throw new Error("steering_experiment_config.js が読み込まれていません。");
+        }
+
+        const CSV_COLUMNS = [
+          "participantId",
+          "age",
+          "handedness",
+          "mouseExperience",
+          "experimentMode",
+          "phase",
+          "conditionId",
+          "conditionName",
+          "conditionLabel",
+          "width",
+          "amplitude",
+          "steeringId",
+          "conditionOrder",
+          "trialInCondition",
+          "trialInPhase",
+          "totalTrial",
+          "attemptNumber",
+          "startedAtIso",
+          "endedAtIso",
+          "mtMs",
+          "success",
+          "countedAsTrial",
+          "errorType",
+          "endpointX",
+          "endpointY",
+          "pathProgress",
+          "deviated",
+          "deviationCount",
+          "deviationTotalMs",
+          "maxDeviationPx",
+          "excessiveDeviation",
+          "deviationEvents",
+          "trajectory"
+        ];
+
+        const PhaseLabels = {
+          idle: "待機",
+          practice: "反復試行",
+          post: "事後試行",
+          pilot: "予備試行",
+          transition: "遷移",
+          questionnaire: "アンケート",
+          break: "休憩",
+          paused: "休憩",
+          ended: "終了",
+          aborted: "途中終了"
+        };
+
+        const TaskPhases = ["practice", "post", "pilot"];
+
+        const elements = {};
+
+        const state = {
+          phase: "idle",
+          previousPhase: null,
+          pendingPhase: null,
+          mode: "main",
+          participant: null,
+          assignedCondition: null,
+          selectedConditions: [],
+          postSequence: [],
+          practiceConditionIndex: 0,
+          practiceConditionCompleted: 0,
+          pilotConditionIndex: 0,
+          pilotConditionCompleted: 0,
+          practiceCompleted: 0,
+          postCompleted: 0,
+          pilotCompleted: 0,
+          countedTotal: 0,
+          attemptNumber: 0,
+          currentPath: null,
+          activeTrial: null,
+          pointer: null,
+          results: [],
+          questionnaire: null,
+          breakTimerId: null,
+          breakRemainingSeconds: 0,
+          breakEndsAtMs: 0,
+          breakForced: false,
+          lastMessageTone: "info"
+        };
+
+        function collectElements() {
+          [
+            "startScreen",
+            "experimentScreen",
+            "participantForm",
+            "modeMain",
+            "modePilot",
+            "conditionToggleGroup",
+            "conditionSelectionError",
+            "participantId",
+            "age",
+            "handedness",
+            "mouseExperience",
+            "modeChip",
+            "phaseChip",
+            "conditionChip",
+            "trialChip",
+            "participantChip",
+            "pauseButton",
+            "resumeButton",
+            "abortTrialButton",
+            "endButton",
+            "saveCsvButton",
+            "saveJsonButton",
+            "pilotProgressRow",
+            "pilotProgressText",
+            "pilotProgressFill",
+            "practiceProgressRow",
+            "practiceProgressText",
+            "practiceProgressFill",
+            "postProgressRow",
+            "postProgressText",
+            "postProgressFill",
+            "questionnaireProgressRow",
+            "questionnaireProgressText",
+            "questionnaireProgressFill",
+            "conditionList",
+            "summaryTable",
+            "logList",
+            "workspace",
+            "sidebarPanel",
+            "taskCanvas",
+            "messageBar",
+            "questionnairePanel",
+            "questionnaireForm",
+            "questionnaireComment",
+            "phaseModal",
+            "phaseModalTitle",
+            "phaseModalText",
+            "phaseModalButton",
+            "breakModal",
+            "breakText",
+            "breakTimerText",
+            "modalResumeButton",
+            "endModal",
+            "endText",
+            "modalSaveCsvButton",
+            "modalSaveJsonButton"
+          ].forEach((id) => {
+            elements[id] = document.getElementById(id);
+          });
+        }
+
+        function escapeHtml(value) {
+          return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+        }
+
+        function clamp(value, min, max) {
+          return Math.max(min, Math.min(max, value));
+        }
+
+        function hashString(text) {
+          let hash = 2166136261;
+          for (let i = 0; i < text.length; i += 1) {
+            hash ^= text.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+          }
+          return hash >>> 0;
+        }
+
+        function createSeededRandom(seedText) {
+          let seed = hashString(seedText) || 1;
+          return function random() {
+            seed ^= seed << 13;
+            seed ^= seed >>> 17;
+            seed ^= seed << 5;
+            return ((seed >>> 0) % 1000000) / 1000000;
+          };
+        }
+
+        function seededShuffle(items, seedText) {
+          const shuffled = items.slice();
+          const random = createSeededRandom(seedText);
+          for (let i = shuffled.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(random() * (i + 1));
+            const item = shuffled[i];
+            shuffled[i] = shuffled[j];
+            shuffled[j] = item;
+          }
+          return shuffled;
+        }
+
+        function formatNumber(value, digits) {
+          if (!Number.isFinite(value)) {
+            return "-";
+          }
+          return value.toFixed(digits);
+        }
+
+        function roundedRectPath(ctx, x, y, width, height, radius) {
+          if (typeof ctx.roundRect === "function") {
+            ctx.roundRect(x, y, width, height, radius);
+            return;
+          }
+          const r = Math.min(radius, width / 2, height / 2);
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + width - r, y);
+          ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+          ctx.lineTo(x + width, y + height - r);
+          ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+          ctx.lineTo(x + r, y + height);
+          ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+          ctx.lineTo(x, y + r);
+          ctx.quadraticCurveTo(x, y, x + r, y);
+        }
+
+        function nowIso() {
+          return new Date().toISOString();
+        }
+
+        function modeConfig() {
+          return (
+            Config.experimentModes[state.mode] ||
+            Config.experimentModes.main ||
+            {}
+          );
+        }
+
+        function selectedModeId() {
+          const formData = new FormData(elements.participantForm);
+          return formData.get("experimentMode") || "main";
+        }
+
+        function renderConditionChoices() {
+          elements.conditionToggleGroup.innerHTML = Config.conditions
+            .map(
+              (condition, index) => `
+                <label class="condition-option">
+                  <input
+                    type="checkbox"
+                    name="selectedConditions"
+                    value="${escapeHtml(condition.id)}"
+                    ${index === 0 ? "checked" : ""}
+                  />
+                  <span class="condition-card">
+                    <b>${escapeHtml(condition.id)} ${escapeHtml(condition.name)}</b>
+                    <span>A=${escapeHtml(condition.amplitude)} / W=${escapeHtml(condition.width)} / ID=${escapeHtml(condition.steeringId)}</span>
+                  </span>
+                </label>
+              `
+            )
+            .join("");
+        }
+
+        function selectedConditionIds() {
+          return Array.from(
+            elements.participantForm.querySelectorAll(
+              'input[name="selectedConditions"]:checked'
+            )
+          ).map((input) => input.value);
+        }
+
+        function conditionsFromIds(ids) {
+          const selected = new Set(ids);
+          return Config.conditions.filter((condition) => selected.has(condition.id));
+        }
+
+        function conditionQueue() {
+          return state.selectedConditions.length
+            ? state.selectedConditions
+            : [Config.conditions[0]];
+        }
+
+        function phaseConditionIndex(phase) {
+          if (phase === "pilot") {
+            return state.pilotConditionIndex;
+          }
+          if (phase === "practice") {
+            return state.practiceConditionIndex;
+          }
+          return 0;
+        }
+
+        function phaseConditionCompleted(phase) {
+          if (phase === "pilot") {
+            return state.pilotConditionCompleted;
+          }
+          if (phase === "practice") {
+            return state.practiceConditionCompleted;
+          }
+          return phaseCompleted(phase);
+        }
+
+        function setPhaseConditionCompleted(phase, value) {
+          if (phase === "pilot") {
+            state.pilotConditionCompleted = value;
+          } else if (phase === "practice") {
+            state.practiceConditionCompleted = value;
+          }
+        }
+
+        function setPhaseConditionIndex(phase, value) {
+          if (phase === "pilot") {
+            state.pilotConditionIndex = value;
+          } else if (phase === "practice") {
+            state.practiceConditionIndex = value;
+          }
+        }
+
+        function isTaskPhase(phase) {
+          return TaskPhases.includes(phase);
+        }
+
+        function activePhase() {
+          if (
+            state.phase === "break" ||
+            state.phase === "paused" ||
+            state.phase === "transition"
+          ) {
+            return state.previousPhase || "practice";
+          }
+          return state.phase;
+        }
+
+        function phaseTrialTotal(phase) {
+          const mode = modeConfig();
+          const selectedCount = conditionQueue().length;
+          if (phase === "pilot") {
+            return selectedCount * (mode.trials || Config.pilotTrials);
+          }
+          if (phase === "post") {
+            return state.postSequence.length || mode.postTrials || Config.postTrials;
+          }
+          if (phase === "practice") {
+            return selectedCount * (mode.practiceTrials || Config.practiceTrials);
+          }
+          return 0;
+        }
+
+        function phaseConditionTotal(phase) {
+          const mode = modeConfig();
+          if (phase === "pilot") {
+            return mode.trials || Config.pilotTrials;
+          }
+          if (phase === "practice") {
+            return mode.practiceTrials || Config.practiceTrials;
+          }
+          return phaseTrialTotal(phase);
+        }
+
+        function phaseCompleted(phase) {
+          if (phase === "pilot") {
+            return state.pilotCompleted;
+          }
+          if (phase === "post") {
+            return state.postCompleted;
+          }
+          if (phase === "practice") {
+            return state.practiceCompleted;
+          }
+          return 0;
+        }
+
+        function setPhaseCompleted(phase, value) {
+          if (phase === "pilot") {
+            state.pilotCompleted = value;
+          } else if (phase === "post") {
+            state.postCompleted = value;
+          } else if (phase === "practice") {
+            state.practiceCompleted = value;
+          }
+        }
+
+        function shouldUseForcedBreak(phase) {
+          const mode = modeConfig();
+          return Boolean(mode.forcedBreak && phase !== "pilot");
+        }
+
+        function shouldShowTaskOnlyLayout() {
+          if (isTaskPhase(state.phase)) {
+            return true;
+          }
+          if (["break", "paused"].includes(state.phase)) {
+            return isTaskPhase(state.previousPhase);
+          }
+          return false;
+        }
+
+        function syncScreenVisibility() {
+          const showingQuestionnaire = state.phase === "questionnaire";
+          elements.experimentScreen.classList.toggle(
+            "task-only",
+            shouldShowTaskOnlyLayout()
+          );
+          elements.workspace.classList.toggle("hidden", showingQuestionnaire);
+          elements.questionnairePanel.classList.toggle(
+            "hidden",
+            !showingQuestionnaire
+          );
+        }
+
+        function selectAssignedCondition(participantId) {
+          const hash = hashString(participantId.trim());
+          const index = hash % Config.conditions.length;
+          return Config.conditions[index] || Config.conditions[0];
+        }
+
+        function buildPostSequence(selectedConditions) {
+          const sequence = [];
+          selectedConditions.forEach((selectedCondition, selectedIndex) => {
+            const condition =
+              Config.postConditions.find((item) => item.id === selectedCondition.id) ||
+              selectedCondition;
+            const trials = condition.trials || 0;
+            for (let i = 0; i < trials; i += 1) {
+              sequence.push({
+                ...condition,
+                selectedOrder: selectedIndex + 1,
+                postBlockIndex: i + 1
+              });
+            }
+          });
+          return sequence;
+        }
+
+        function currentCondition() {
+          const phase = activePhase();
+          if (phase === "practice" || phase === "pilot") {
+            const queue = conditionQueue();
+            return (
+              queue[phaseConditionIndex(phase)] ||
+              queue[queue.length - 1] ||
+              Config.conditions[0]
+            );
+          }
+          if (phase === "post") {
+            return (
+              state.postSequence[state.postCompleted] ||
+              state.postSequence[state.postSequence.length - 1] ||
+              state.assignedCondition
+            );
+          }
+          return state.assignedCondition;
+        }
+
+        const Geometry = {
+          preferredCanvasSize(canvas, condition) {
+            const display = Config.display;
+            const angle = (display.diagonalAngleDeg * Math.PI) / 180;
+            const dx = Math.cos(angle) * condition.amplitude;
+            const dy = -Math.sin(angle) * condition.amplitude;
+            const endpointRadius = Math.max(
+              condition.width * 0.92,
+              display.minEndpointRadiusPx
+            );
+            const padding = display.marginPx + endpointRadius;
+            const requiredWidth = Math.ceil(Math.abs(dx) + padding * 2);
+            const requiredHeight = Math.ceil(Math.abs(dy) + padding * 2);
+            const shell = canvas.parentElement;
+            const shellRect = shell
+              ? shell.getBoundingClientRect()
+              : { width: requiredWidth, height: requiredHeight };
+            return {
+              width: Math.max(1, Math.ceil(shellRect.width - 2), requiredWidth),
+              height: Math.max(1, Math.ceil(shellRect.height - 2), requiredHeight)
+            };
+          },
+
+          resizeCanvas(canvas, condition) {
+            if (condition && Config.display.exactPixels) {
+              const preferred = this.preferredCanvasSize(canvas, condition);
+              canvas.style.width = `${preferred.width}px`;
+              canvas.style.height = `${preferred.height}px`;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const width = Math.max(1, Math.round(rect.width * dpr));
+            const height = Math.max(1, Math.round(rect.height * dpr));
+            if (canvas.width !== width || canvas.height !== height) {
+              canvas.width = width;
+              canvas.height = height;
+            }
+            return { width: rect.width, height: rect.height, dpr };
+          },
+
+          makePath(canvas, condition) {
+            const size = this.resizeCanvas(canvas, condition);
+            const display = Config.display;
+            const angle = (display.diagonalAngleDeg * Math.PI) / 180;
+            const direction = { x: Math.cos(angle), y: -Math.sin(angle) };
+            let scale = 1;
+            if (!display.exactPixels) {
+              const maxAmplitude = Math.max(
+                ...Config.conditions.map((item) => item.amplitude)
+              );
+              const margin = display.marginPx;
+              const availableByWidth =
+                Math.max(120, size.width - margin * 2) / Math.abs(direction.x);
+              const availableByHeight =
+                Math.max(120, size.height - margin * 2) / Math.abs(direction.y);
+              const maxLineLength = Math.max(
+                120,
+                Math.min(availableByWidth, availableByHeight)
+              );
+              scale = clamp(
+                maxLineLength / maxAmplitude,
+                0.12,
+                display.maxDisplayScale
+              );
+            }
+            const displayLength = condition.amplitude * scale;
+            const displayWidth = Math.max(
+              condition.width * scale,
+              display.minCorridorWidthPx
+            );
+            const radius = Math.max(
+              displayWidth * 0.92,
+              display.minEndpointRadiusPx
+            );
+            const center = { x: size.width / 2, y: size.height / 2 };
+            const dx = direction.x * displayLength;
+            const dy = direction.y * displayLength;
+            const start = { x: center.x - dx / 2, y: center.y - dy / 2 };
+            const end = { x: center.x + dx / 2, y: center.y + dy / 2 };
+            return {
+              start,
+              end,
+              center,
+              direction,
+              displayLength,
+              displayWidth,
+              radius,
+              scale,
+              angle,
+              size
+            };
+          },
+
+          getCanvasPoint(canvas, event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+              x: event.clientX - rect.left,
+              y: event.clientY - rect.top
+            };
+          },
+
+          isInsideCircle(point, center, radius) {
+            const dx = point.x - center.x;
+            const dy = point.y - center.y;
+            return dx * dx + dy * dy <= radius * radius;
+          },
+
+          getProjection(point, path) {
+            const vx = path.end.x - path.start.x;
+            const vy = path.end.y - path.start.y;
+            const lengthSquared = vx * vx + vy * vy || 1;
+            const raw =
+              ((point.x - path.start.x) * vx + (point.y - path.start.y) * vy) /
+              lengthSquared;
+            const t = clamp(raw, 0, 1);
+            return {
+              raw,
+              t,
+              point: {
+                x: path.start.x + vx * t,
+                y: path.start.y + vy * t
+              }
+            };
+          },
+
+          pointToSegmentDistance(point, a, b) {
+            const vx = b.x - a.x;
+            const vy = b.y - a.y;
+            const lengthSquared = vx * vx + vy * vy;
+            if (!lengthSquared) {
+              return Math.hypot(point.x - a.x, point.y - a.y);
+            }
+            const t = clamp(
+              ((point.x - a.x) * vx + (point.y - a.y) * vy) / lengthSquared,
+              0,
+              1
+            );
+            const px = a.x + vx * t;
+            const py = a.y + vy * t;
+            return Math.hypot(point.x - px, point.y - py);
+          },
+
+          getCorridorDeviation(point, path) {
+            const distance = this.pointToSegmentDistance(
+              point,
+              path.start,
+              path.end
+            );
+            const insideStart = this.isInsideCircle(point, path.start, path.radius);
+            const insideEnd = this.isInsideCircle(point, path.end, path.radius);
+            const outsidePx = Math.max(0, distance - path.displayWidth / 2);
+            return {
+              distance,
+              outsidePx: insideStart || insideEnd ? 0 : outsidePx,
+              inside: insideStart || insideEnd || outsidePx <= 0
+            };
+          },
+
+          isInsideCorridor(point, path) {
+            return this.getCorridorDeviation(point, path).inside;
+          },
+
+          getPathProgress(point, path) {
+            return this.getProjection(point, path).t;
+          }
+        };
+
+        const Renderer = {
+          draw() {
+            const canvas = elements.taskCanvas;
+            const ctx = canvas.getContext("2d");
+            const metrics = Geometry.resizeCanvas(canvas);
+            ctx.setTransform(metrics.dpr, 0, 0, metrics.dpr, 0, 0);
+            ctx.clearRect(0, 0, metrics.width, metrics.height);
+            this.drawBackground(ctx, metrics);
+
+            const condition = currentCondition();
+            if (!state.currentPath || !condition) {
+              this.drawIdle(ctx, metrics);
+              return;
+            }
+
+            this.drawCorridor(ctx, state.currentPath);
+            this.drawEndpointLabels(ctx, state.currentPath);
+            if (state.activeTrial) {
+              this.drawTrajectory(ctx, state.activeTrial);
+            }
+            if (state.pointer) {
+              this.drawPointer(ctx, state.pointer);
+            }
+            this.drawConditionLabel(ctx, condition, state.currentPath);
+          },
+
+          drawBackground(ctx, metrics) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, metrics.width, metrics.height);
+            ctx.save();
+            ctx.strokeStyle = "#edf1f7";
+            ctx.lineWidth = 1;
+            for (let x = 24; x < metrics.width; x += 24) {
+              ctx.beginPath();
+              ctx.moveTo(x, 0);
+              ctx.lineTo(x, metrics.height);
+              ctx.stroke();
+            }
+            for (let y = 24; y < metrics.height; y += 24) {
+              ctx.beginPath();
+              ctx.moveTo(0, y);
+              ctx.lineTo(metrics.width, y);
+              ctx.stroke();
+            }
+            ctx.restore();
+          },
+
+          drawIdle(ctx, metrics) {
+            ctx.save();
+            ctx.fillStyle = "#647086";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "16px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+            ctx.fillText(
+              "参加者情報を入力して実験を開始してください",
+              metrics.width / 2,
+              metrics.height / 2
+            );
+            ctx.restore();
+          },
+
+          drawCorridor(ctx, path) {
+            const normal = {
+              x: -path.direction.y,
+              y: path.direction.x
+            };
+            const half = path.displayWidth / 2;
+            const p1 = {
+              x: path.start.x + normal.x * half,
+              y: path.start.y + normal.y * half
+            };
+            const p2 = {
+              x: path.end.x + normal.x * half,
+              y: path.end.y + normal.y * half
+            };
+            const p3 = {
+              x: path.end.x - normal.x * half,
+              y: path.end.y - normal.y * half
+            };
+            const p4 = {
+              x: path.start.x - normal.x * half,
+              y: path.start.y - normal.y * half
+            };
+
+            ctx.save();
+            ctx.fillStyle = getComputedStyle(document.documentElement)
+              .getPropertyValue("--corridor")
+              .trim();
+            ctx.strokeStyle = getComputedStyle(document.documentElement)
+              .getPropertyValue("--corridor-border")
+              .trim();
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = "#8fb4f2";
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([8, 8]);
+            ctx.beginPath();
+            ctx.moveTo(path.start.x, path.start.y);
+            ctx.lineTo(path.end.x, path.end.y);
+            ctx.stroke();
+            ctx.restore();
+          },
+
+          drawEndpointLabels(ctx, path) {
+            ctx.save();
+            ctx.lineWidth = 2;
+            ctx.fillStyle = "#e8f7ee";
+            ctx.strokeStyle = "#16794c";
+            ctx.beginPath();
+            ctx.arc(path.start.x, path.start.y, path.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#fff2e3";
+            ctx.strokeStyle = "#c87300";
+            ctx.beginPath();
+            ctx.arc(path.end.x, path.end.y, path.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = "700 12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#16794c";
+            ctx.fillText("START", path.start.x, path.start.y);
+            ctx.fillStyle = "#9a6700";
+            ctx.fillText("END", path.end.x, path.end.y);
+            ctx.restore();
+          },
+
+          drawTrajectory(ctx, trial) {
+            const points = trial.trajectory;
+            if (points.length < 2) {
+              return;
+            }
+            ctx.save();
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.strokeStyle = trial.deviated ? "#d83b32" : "#172033";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i += 1) {
+              ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.stroke();
+            ctx.restore();
+          },
+
+          drawPointer(ctx, pointer) {
+            ctx.save();
+            ctx.fillStyle = pointer.outside ? "#d83b32" : "#1f6feb";
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(pointer.x, pointer.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          },
+
+          drawConditionLabel(ctx, condition, path) {
+            ctx.save();
+            ctx.fillStyle = "rgb(255 255 255 / 0.92)";
+            ctx.strokeStyle = "#d8dee9";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            roundedRectPath(ctx, 14, 14, 220, 86, 6);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = "#172033";
+            ctx.font = "700 14px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+            ctx.fillText(`${condition.id} ${condition.name}`, 26, 40);
+            ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+            ctx.fillStyle = "#647086";
+            ctx.fillText(
+              `A=${condition.amplitude} / W=${condition.width} / ID=${condition.steeringId}`,
+              26,
+              62
+            );
+            ctx.fillText(
+              Config.display.exactPixels
+                ? "表示: 実寸ピクセル"
+                : `表示倍率 ${formatNumber(path.scale, 3)}`,
+              26,
+              82
+            );
+            ctx.restore();
+          }
+        };
+
+        const DataExport = {
+          csvEscape(value) {
+            if (value === null || value === undefined) {
+              return "";
+            }
+            const raw =
+              typeof value === "object" ? JSON.stringify(value) : String(value);
+            if (/[",\n]/.test(raw)) {
+              return `"${raw.replace(/"/g, '""')}"`;
+            }
+            return raw;
+          },
+
+          makeCsv(results) {
+            const lines = [CSV_COLUMNS.join(",")];
+            results.forEach((row) => {
+              lines.push(
+                CSV_COLUMNS.map((column) => this.csvEscape(row[column])).join(",")
+              );
+            });
+            return `${lines.join("\n")}\n`;
+          },
+
+          makeJson() {
+            return JSON.stringify(
+              {
+                exportedAtIso: nowIso(),
+                appName: Config.appName,
+                appVersion: Config.appVersion,
+                experimentMode: state.mode,
+                experimentModeConfig: modeConfig(),
+                participant: state.participant,
+                assignment: Config.assignment,
+                assignedCondition: state.assignedCondition,
+                selectedConditions: state.selectedConditions,
+                practiceTrials: phaseTrialTotal("practice"),
+                postTrials: phaseTrialTotal("post"),
+                pilotTrials: phaseTrialTotal("pilot"),
+                breakInterval: Config.breakInterval,
+                forcedBreakSeconds: Config.forcedBreakSeconds,
+                conditions: Config.conditions,
+                postConditions: Config.postConditions,
+                postSequence: state.postSequence.map((condition, index) => ({
+                  index: index + 1,
+                  conditionId: condition.id,
+                  conditionName: condition.name,
+                  width: condition.width,
+                  amplitude: condition.amplitude,
+                  steeringId: condition.steeringId
+                })),
+                questionnaire: state.questionnaire,
+                results: state.results
+              },
+              null,
+              2
+            );
+          },
+
+          makeFilename(extension) {
+            const participantId = sanitizeFilenamePart(
+              state.participant ? state.participant.participantId : "unknown"
+            );
+            const conditionId = sanitizeFilenamePart(
+              state.selectedConditions.length
+                ? state.selectedConditions.map((condition) => condition.id).join("-")
+                : state.assignedCondition
+                  ? state.assignedCondition.id
+                  : "NA"
+            );
+            const modeId = sanitizeFilenamePart(state.mode || "main");
+            const stamp = makeTimestamp();
+            return `${Config.export.filenamePrefix}_${modeId}_${participantId}_${conditionId}_${stamp}.${extension}`;
+          },
+
+          download(filename, text, type) {
+            const blob = new Blob([text], { type });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = filename;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+          }
+        };
+
+        function sanitizeFilenamePart(value) {
+          return String(value || "unknown")
+            .trim()
+            .replace(/[^a-zA-Z0-9_-]+/g, "_")
+            .replace(/^_+|_+$/g, "")
+            .slice(0, 80) || "unknown";
+        }
+
+        function makeTimestamp() {
+          const date = new Date();
+          const pad = (value) => String(value).padStart(2, "0");
+          return [
+            date.getFullYear(),
+            pad(date.getMonth() + 1),
+            pad(date.getDate()),
+            "_",
+            pad(date.getHours()),
+            pad(date.getMinutes()),
+            pad(date.getSeconds())
+          ].join("");
+        }
+
+        function setMessage(text, tone) {
+          elements.messageBar.textContent = text;
+          elements.messageBar.dataset.tone = tone || "info";
+          state.lastMessageTone = tone || "info";
+        }
+
+        function updateUi() {
+          syncScreenVisibility();
+          const mode = modeConfig();
+          const condition = currentCondition();
+          const phase = activePhase();
+          const total = phaseTrialTotal(phase);
+          const completed = phaseCompleted(phase);
+          elements.modeChip.textContent = mode.name || "-";
+          elements.phaseChip.textContent = PhaseLabels[state.phase] || state.phase;
+          elements.conditionChip.textContent = condition
+            ? `${condition.id} ${condition.name}`
+            : "-";
+          if (state.phase === "questionnaire") {
+            elements.trialChip.textContent = state.questionnaire
+              ? "回答済み"
+              : "回答中";
+          } else if (total > 0) {
+            elements.trialChip.textContent = `${completed} / ${total}`;
+          } else {
+            elements.trialChip.textContent = `${state.countedTotal} 記録`;
+          }
+          elements.participantChip.textContent = state.participant
+            ? state.participant.participantId
+            : "-";
+
+          const pilotTotal = phaseTrialTotal("pilot");
+          const practiceTotal = phaseTrialTotal("practice");
+          const postTotal = phaseTrialTotal("post");
+          const isPilot = state.mode === "pilot";
+          elements.pilotProgressRow.classList.toggle("hidden", !isPilot);
+          elements.practiceProgressRow.classList.toggle("hidden", isPilot);
+          elements.postProgressRow.classList.toggle("hidden", isPilot);
+          elements.questionnaireProgressRow.classList.toggle("hidden", isPilot);
+          elements.pilotProgressText.textContent = `${state.pilotCompleted} / ${pilotTotal}`;
+          elements.practiceProgressText.textContent = `${state.practiceCompleted} / ${practiceTotal}`;
+          elements.postProgressText.textContent = `${state.postCompleted} / ${postTotal}`;
+          elements.questionnaireProgressText.textContent = state.questionnaire
+            ? "回答済み"
+            : "未回答";
+          elements.pilotProgressFill.style.width = `${clamp(
+            (state.pilotCompleted / Math.max(1, pilotTotal)) * 100,
+            0,
+            100
+          )}%`;
+          elements.practiceProgressFill.style.width = `${clamp(
+            (state.practiceCompleted / Math.max(1, practiceTotal)) * 100,
+            0,
+            100
+          )}%`;
+          elements.postProgressFill.style.width = `${clamp(
+            (state.postCompleted / Math.max(1, postTotal)) * 100,
+            0,
+            100
+          )}%`;
+          elements.questionnaireProgressFill.style.width = state.questionnaire
+            ? "100%"
+            : "0%";
+
+          elements.pauseButton.disabled = !isTaskPhase(state.phase);
+          elements.resumeButton.disabled =
+            !["break", "paused"].includes(state.phase) ||
+            (state.breakForced && state.breakRemainingSeconds > 0);
+          elements.abortTrialButton.disabled = !state.activeTrial;
+          elements.saveCsvButton.disabled = state.results.length === 0;
+          elements.saveJsonButton.disabled = state.results.length === 0;
+          elements.modalSaveCsvButton.disabled = state.results.length === 0;
+          elements.modalSaveJsonButton.disabled = state.results.length === 0;
+
+          renderConditionList();
+          renderSummary();
+          renderLog();
+        }
+
+        function renderConditionList() {
+          const condition = currentCondition();
+          const selectedIds = new Set(
+            state.selectedConditions.map((item) => item.id)
+          );
+          elements.conditionList.innerHTML = Config.conditions
+            .map((item) => {
+              const classes = ["condition-item"];
+              if (condition && item.id === condition.id) {
+                classes.push("is-current");
+              }
+              if (selectedIds.has(item.id)) {
+                classes.push("is-assigned");
+              }
+              return `
+                <div class="${classes.join(" ")}">
+                  <div class="condition-title">
+                    <span>${escapeHtml(item.id)} ${escapeHtml(item.name)}</span>
+                    <span>ID ${escapeHtml(item.steeringId)}</span>
+                  </div>
+                  <div class="condition-meta">
+                    ${escapeHtml(item.label)} / A=${escapeHtml(item.amplitude)} / W=${escapeHtml(item.width)}
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+        }
+
+        function renderSummary() {
+          const groups = new Map();
+          state.results
+            .filter((row) => row.countedAsTrial)
+            .forEach((row) => {
+              if (!groups.has(row.conditionId)) {
+                groups.set(row.conditionId, {
+                  conditionId: row.conditionId,
+                  mtValues: [],
+                  counted: 0,
+                  errors: 0,
+                  deviations: 0
+                });
+              }
+              const group = groups.get(row.conditionId);
+              group.counted += 1;
+              if (Number.isFinite(row.mtMs) && row.success) {
+                group.mtValues.push(row.mtMs);
+              }
+              if (!row.success || row.errorType !== "none") {
+                group.errors += 1;
+              }
+              if (row.deviated) {
+                group.deviations += 1;
+              }
+            });
+
+          const rows = Config.conditions
+            .map((condition) => {
+              const group = groups.get(condition.id);
+              if (!group) {
+                return `<tr><td>${escapeHtml(condition.id)}</td><td>-</td><td>-</td><td>-</td></tr>`;
+              }
+              const average =
+                group.mtValues.reduce((sum, value) => sum + value, 0) /
+                Math.max(1, group.mtValues.length);
+              return `
+                <tr>
+                  <td>${escapeHtml(condition.id)}</td>
+                  <td>${group.counted}</td>
+                  <td>${formatNumber(average, 0)}</td>
+                  <td>${formatNumber((group.errors / group.counted) * 100, 1)}%</td>
+                </tr>
+              `;
+            })
+            .join("");
+
+          elements.summaryTable.innerHTML = `
+            <table>
+              <thead><tr><th>条件</th><th>n</th><th>平均MT</th><th>エラー率</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          `;
+        }
+
+        function renderLog() {
+          if (state.results.length === 0) {
+            elements.logList.innerHTML =
+              '<p class="small-muted">まだ記録された試行はありません。</p>';
+            return;
+          }
+          elements.logList.innerHTML = state.results
+            .slice(-12)
+            .reverse()
+            .map((row) => {
+              const className = !row.countedAsTrial
+                ? "retry"
+                : row.success
+                  ? "success"
+                  : "error";
+              const label = !row.countedAsTrial
+                ? "やり直し"
+                : row.success
+                  ? "完了"
+                  : "分析対象エラー";
+              return `
+                <div class="log-entry ${className}">
+                  <b>#${row.attemptNumber} ${escapeHtml(label)}</b>
+                  <div>${escapeHtml(PhaseLabels[row.phase] || row.phase)} / ${escapeHtml(row.conditionId)} / trial ${escapeHtml(row.trialInPhase)}</div>
+                  <div>MT=${escapeHtml(row.mtMs)}ms / error=${escapeHtml(row.errorType)} / dev=${escapeHtml(row.maxDeviationPx)}px</div>
+                </div>
+              `;
+            })
+            .join("");
+        }
+
+        function prepareTrial(message) {
+          if (!isTaskPhase(state.phase)) {
+            return;
+          }
+          state.activeTrial = null;
+          state.pointer = null;
+          state.currentPath = Geometry.makePath(elements.taskCanvas, currentCondition());
+          if (message) {
+            setMessage(message, "info");
+          }
+          updateUi();
+          Renderer.draw();
+        }
+
+        function startExperiment(event) {
+          event.preventDefault();
+          const form = elements.participantForm;
+          if (!form.reportValidity()) {
+            return;
+          }
+          const participantId = elements.participantId.value.trim();
+          const selectedConditions = conditionsFromIds(selectedConditionIds());
+          if (selectedConditions.length === 0) {
+            elements.conditionSelectionError.classList.remove("hidden");
+            return;
+          }
+          elements.conditionSelectionError.classList.add("hidden");
+          state.mode = selectedModeId();
+          const mode = modeConfig();
+          state.participant = {
+            participantId,
+            age: Number(elements.age.value),
+            handedness: elements.handedness.value,
+            mouseExperience: elements.mouseExperience.value,
+            experimentMode: state.mode
+          };
+          state.selectedConditions = selectedConditions;
+          state.assignedCondition = selectedConditions[0];
+          state.postSequence = mode.hasPostPhase
+            ? buildPostSequence(selectedConditions)
+            : [];
+          state.practiceConditionIndex = 0;
+          state.practiceConditionCompleted = 0;
+          state.pilotConditionIndex = 0;
+          state.pilotConditionCompleted = 0;
+          state.practiceCompleted = 0;
+          state.postCompleted = 0;
+          state.pilotCompleted = 0;
+          state.countedTotal = 0;
+          state.attemptNumber = 0;
+          state.results = [];
+          state.questionnaire = null;
+          state.phase = state.mode === "pilot" ? "pilot" : "practice";
+          state.previousPhase = null;
+          state.pendingPhase = null;
+          clearBreakTimer();
+          elements.startScreen.classList.add("hidden");
+          elements.experimentScreen.classList.remove("hidden");
+          elements.endModal.classList.add("hidden");
+          elements.phaseModal.classList.add("hidden");
+          elements.breakModal.classList.add("hidden");
+          requestAnimationFrame(() => {
+            const firstCondition = currentCondition();
+            prepareTrial(
+              `${mode.name}を開始します。${firstCondition.id} ${firstCondition.name} から提示します。開始円の内側で押してください。`
+            );
+          });
+        }
+
+        function startTrial(point, event) {
+          if (!isTaskPhase(state.phase)) {
+            return;
+          }
+          const condition = currentCondition();
+          const path = state.currentPath || Geometry.makePath(elements.taskCanvas, condition);
+          state.currentPath = path;
+          if (!Geometry.isInsideCircle(point, path.start, path.radius)) {
+            setMessage("開始円の内側から開始してください。", "warn");
+            state.pointer = { ...point, outside: false };
+            Renderer.draw();
+            return;
+          }
+          if (event && event.pointerId !== undefined) {
+            elements.taskCanvas.setPointerCapture(event.pointerId);
+          }
+          const phase = activePhase();
+          const trialInPhase = phaseCompleted(phase) + 1;
+          const trialInCurrentCondition = phaseConditionCompleted(phase) + 1;
+          state.activeTrial = {
+            phase,
+            condition,
+            path,
+            trialInCondition:
+              phase === "post" && condition.postBlockIndex
+                ? condition.postBlockIndex
+                : trialInCurrentCondition,
+            trialInPhase,
+            totalTrial: state.countedTotal + 1,
+            conditionOrder:
+              phase === "post"
+                ? condition.selectedOrder || state.postCompleted + 1
+                : phaseConditionIndex(phase) + 1,
+            startedPerf: performance.now(),
+            startedAtIso: nowIso(),
+            trajectory: [{ x: point.x, y: point.y, t: 0 }],
+            deviated: false,
+            deviationCount: 0,
+            deviationTotalMs: 0,
+            maxDeviationPx: 0,
+            excessiveDeviation: false,
+            deviationEvents: [],
+            openDeviation: null
+          };
+          state.pointer = { ...point, outside: false };
+          setMessage("計測中です。終了円内でポインタを離してください。", "info");
+          updateUi();
+          Renderer.draw();
+        }
+
+        function recordMove(point) {
+          if (!state.activeTrial) {
+            state.pointer = { ...point, outside: false };
+            Renderer.draw();
+            return;
+          }
+          const trial = state.activeTrial;
+          const elapsed = performance.now() - trial.startedPerf;
+          const deviation = Geometry.getCorridorDeviation(point, trial.path);
+          const roundedOutside = Math.round(deviation.outsidePx * 10) / 10;
+          trial.trajectory.push({
+            x: Math.round(point.x * 10) / 10,
+            y: Math.round(point.y * 10) / 10,
+            t: Math.round(elapsed)
+          });
+          if (!deviation.inside) {
+            trial.deviated = true;
+            trial.maxDeviationPx = Math.max(trial.maxDeviationPx, roundedOutside);
+            if (roundedOutside >= Config.errorCriteria.deviationThresholdPx) {
+              trial.excessiveDeviation = true;
+            }
+            if (!trial.openDeviation) {
+              trial.deviationCount += 1;
+              trial.openDeviation = {
+                startMs: Math.round(elapsed),
+                startX: Math.round(point.x * 10) / 10,
+                startY: Math.round(point.y * 10) / 10,
+                maxOutsidePx: roundedOutside
+              };
+            } else {
+              trial.openDeviation.maxOutsidePx = Math.max(
+                trial.openDeviation.maxOutsidePx,
+                roundedOutside
+              );
+            }
+          } else if (trial.openDeviation) {
+            closeDeviationEvent(trial, point, elapsed);
+          }
+
+          state.pointer = {
+            ...point,
+            outside: !deviation.inside
+          };
+
+          Renderer.draw();
+        }
+
+        function closeDeviationEvent(trial, point, elapsed) {
+          if (!trial.openDeviation) {
+            return;
+          }
+          const event = {
+            ...trial.openDeviation,
+            endMs: Math.round(elapsed),
+            endX: Math.round(point.x * 10) / 10,
+            endY: Math.round(point.y * 10) / 10
+          };
+          event.durationMs = Math.max(0, event.endMs - event.startMs);
+          trial.deviationTotalMs += event.durationMs;
+          trial.deviationEvents.push(event);
+          trial.openDeviation = null;
+        }
+
+        function completeFromPointerUp(point) {
+          const trial = state.activeTrial;
+          if (!trial) {
+            return;
+          }
+          const progress = Geometry.getPathProgress(point, trial.path);
+          if (Geometry.isInsideCircle(point, trial.path.end, trial.path.radius)) {
+            completeCountedTrial(point, true, "goal_reached");
+            return;
+          }
+          if (progress >= Config.errorCriteria.nearGoalProgressThreshold) {
+            completeCountedTrial(point, false, "near_goal_pointerup");
+            return;
+          }
+          retryTrial("pointerup_mid_path", point);
+        }
+
+        function completeCountedTrial(point, success, completionType) {
+          const trial = state.activeTrial;
+          if (!trial) {
+            return;
+          }
+          const elapsed = performance.now() - trial.startedPerf;
+          if (trial.openDeviation) {
+            closeDeviationEvent(trial, point, elapsed);
+          }
+          let errorType = "none";
+          if (!success) {
+            errorType = completionType;
+          } else if (trial.excessiveDeviation) {
+            errorType = "excessive_deviation";
+          } else if (trial.deviated) {
+            errorType = "deviation";
+          }
+          const row = makeResultRow(trial, {
+            point,
+            elapsed,
+            success,
+            countedAsTrial: true,
+            errorType
+          });
+          state.results.push(row);
+          state.activeTrial = null;
+          state.pointer = { ...point, outside: false };
+          setMessage(
+            success
+              ? `試行を記録しました。MT=${row.mtMs}ms`
+              : "ゴール直前のポインタ離脱を分析対象エラーとして記録しました。",
+            success ? "good" : "warn"
+          );
+          advanceAfterCountedTrial();
+        }
+
+        function retryTrial(errorType, point) {
+          const trial = state.activeTrial;
+          if (!trial) {
+            setMessage("実行中の試行はありません。", "warn");
+            return;
+          }
+          const fallbackPoint =
+            point || trial.trajectory[trial.trajectory.length - 1] || trial.path.start;
+          const elapsed = performance.now() - trial.startedPerf;
+          if (trial.openDeviation) {
+            closeDeviationEvent(trial, fallbackPoint, elapsed);
+          }
+          const row = makeResultRow(trial, {
+            point: fallbackPoint,
+            elapsed,
+            success: false,
+            countedAsTrial: false,
+            errorType
+          });
+          state.results.push(row);
+          state.activeTrial = null;
+          state.pointer = null;
+          setMessage("この試行はカウントせず，同じ試行をやり直します。", "warn");
+          prepareTrial();
+        }
+
+        function makeResultRow(trial, outcome) {
+          const condition = trial.condition;
+          const progress = Geometry.getPathProgress(outcome.point, trial.path);
+          const participant = state.participant;
+          const attemptNumber = state.attemptNumber + 1;
+          state.attemptNumber = attemptNumber;
+          return {
+            participantId: participant.participantId,
+            age: participant.age,
+            handedness: participant.handedness,
+            mouseExperience: participant.mouseExperience,
+            experimentMode: participant.experimentMode,
+            phase: trial.phase,
+            conditionId: condition.id,
+            conditionName: condition.name,
+            conditionLabel: condition.label,
+            width: condition.width,
+            amplitude: condition.amplitude,
+            steeringId: condition.steeringId,
+            conditionOrder: trial.conditionOrder,
+            trialInCondition: trial.trialInCondition,
+            trialInPhase: trial.trialInPhase,
+            totalTrial: trial.totalTrial,
+            attemptNumber,
+            startedAtIso: trial.startedAtIso,
+            endedAtIso: nowIso(),
+            mtMs: Math.round(outcome.elapsed),
+            success: outcome.success,
+            countedAsTrial: outcome.countedAsTrial,
+            errorType: outcome.errorType,
+            endpointX: Math.round(outcome.point.x * 10) / 10,
+            endpointY: Math.round(outcome.point.y * 10) / 10,
+            pathProgress: Number(progress.toFixed(4)),
+            deviated: trial.deviated,
+            deviationCount: trial.deviationCount,
+            deviationTotalMs: Math.round(trial.deviationTotalMs),
+            maxDeviationPx: Math.round(trial.maxDeviationPx * 10) / 10,
+            excessiveDeviation: trial.excessiveDeviation,
+            deviationEvents: trial.deviationEvents,
+            trajectory: trial.trajectory
+          };
+        }
+
+        function advanceAfterCountedTrial() {
+          const phase = state.phase;
+          if (!isTaskPhase(phase)) {
+            return;
+          }
+
+          const completed = phaseCompleted(phase) + 1;
+          const conditionCompleted = phaseConditionCompleted(phase) + 1;
+          const total = phaseTrialTotal(phase);
+          const conditionTotal = phaseConditionTotal(phase);
+          setPhaseCompleted(phase, completed);
+          setPhaseConditionCompleted(phase, conditionCompleted);
+          state.countedTotal += 1;
+
+          if (completed >= total) {
+            finishTaskPhase(phase);
+            return;
+          }
+
+          if (
+            (phase === "practice" || phase === "pilot") &&
+            conditionCompleted >= conditionTotal
+          ) {
+            advanceToNextSelectedCondition(phase);
+            return;
+          }
+
+          if (
+            shouldUseForcedBreak(phase) &&
+            conditionCompleted % Config.breakInterval === 0
+          ) {
+            startBreak(phase, true);
+            return;
+          }
+
+          if (
+            phase === "pilot" &&
+            modeConfig().manualPause &&
+            conditionCompleted % Config.manualPauseInterval === 0
+          ) {
+            startBreak(
+              phase,
+              false,
+              `${Config.manualPauseInterval}試行が終了しました。準備ができたら自分のタイミングで再開してください。`
+            );
+            return;
+          }
+
+          const nextMessage =
+            phase === "post"
+              ? "次の事後試行です。開始円の内側で押してください。"
+              : phase === "pilot"
+                ? "次の予備試行です。開始円の内側で押してください。"
+                : "次の反復試行です。開始円の内側で押してください。";
+          prepareTrial(nextMessage);
+        }
+
+        function advanceToNextSelectedCondition(phase) {
+          const queue = conditionQueue();
+          const previousCondition = currentCondition();
+          const nextIndex = phaseConditionIndex(phase) + 1;
+          const nextCondition = queue[nextIndex];
+          setPhaseConditionIndex(phase, nextIndex);
+          setPhaseConditionCompleted(phase, 0);
+
+          if (!nextCondition) {
+            finishTaskPhase(phase);
+            return;
+          }
+
+          if (phase === "pilot") {
+            startBreak(
+              phase,
+              false,
+              `${previousCondition.id} ${previousCondition.name} の300試行が終了しました。次は ${nextCondition.id} ${nextCondition.name} です。準備ができたら再開してください。`
+            );
+            return;
+          }
+
+          startPhaseTransition({
+            previousPhase: phase,
+            nextPhase: phase,
+            title: `${previousCondition.id} ${previousCondition.name} が終了しました`,
+            text: `次は ${nextCondition.id} ${nextCondition.name} の反復試行です。準備ができたら次へ進んでください。`,
+            buttonText: "次の条件へ進む"
+          });
+        }
+
+        function finishTaskPhase(phase) {
+          if (phase === "pilot") {
+            finishExperiment(
+              "予備実験の全選択条件が終了しました。記録済みの結果を保存してください。"
+            );
+            return;
+          }
+
+          if (phase === "practice") {
+            startPhaseTransition({
+              previousPhase: "practice",
+              nextPhase: "post",
+              title: "反復試行が終了しました",
+              text:
+                "ここから事後試行に進みます。準備ができたら次へ進んでください。",
+              buttonText: "事後試行へ進む"
+            });
+            return;
+          }
+
+          if (phase === "post") {
+            startPhaseTransition({
+              previousPhase: "post",
+              nextPhase: modeConfig().hasQuestionnaire ? "questionnaire" : "ended",
+              title: "事後試行が終了しました",
+              text:
+                "ステアリング課題は終了です。続いてアンケートに回答してください。",
+              buttonText: "アンケートへ進む"
+            });
+          }
+        }
+
+        function startPhaseTransition(options) {
+          state.phase = "transition";
+          state.previousPhase = options.previousPhase;
+          state.pendingPhase = options.nextPhase;
+          state.activeTrial = null;
+          state.pointer = null;
+          elements.phaseModalTitle.textContent = options.title;
+          elements.phaseModalText.textContent = options.text;
+          elements.phaseModalButton.textContent = options.buttonText;
+          elements.phaseModal.classList.remove("hidden");
+          setMessage(options.title, "good");
+          updateUi();
+          Renderer.draw();
+        }
+
+        function proceedPhaseTransition() {
+          const nextPhase = state.pendingPhase;
+          elements.phaseModal.classList.add("hidden");
+          state.pendingPhase = null;
+          state.previousPhase = null;
+
+          if (nextPhase === "post") {
+            state.phase = "post";
+            prepareTrial("事後試行を開始します。開始円の内側で押してください。");
+            return;
+          }
+
+          if (isTaskPhase(nextPhase)) {
+            state.phase = nextPhase;
+            prepareTrial("次の条件を開始します。開始円の内側で押してください。");
+            return;
+          }
+
+          if (nextPhase === "questionnaire") {
+            showQuestionnaire();
+            return;
+          }
+
+          finishExperiment();
+        }
+
+        function showQuestionnaire() {
+          state.phase = "questionnaire";
+          state.activeTrial = null;
+          state.pointer = null;
+          state.currentPath = null;
+          setMessage("アンケートに回答してください。", "info");
+          updateUi();
+        }
+
+        function clearBreakTimer() {
+          if (state.breakTimerId) {
+            window.clearInterval(state.breakTimerId);
+          }
+          state.breakTimerId = null;
+          state.breakRemainingSeconds = 0;
+          state.breakEndsAtMs = 0;
+          state.breakForced = false;
+          if (elements.breakTimerText) {
+            elements.breakTimerText.textContent = "";
+          }
+          if (elements.modalResumeButton) {
+            elements.modalResumeButton.disabled = false;
+            elements.modalResumeButton.textContent = "再開";
+          }
+        }
+
+        function updateBreakTimer() {
+          if (!state.breakForced) {
+            elements.breakTimerText.textContent = "";
+            elements.modalResumeButton.disabled = false;
+            elements.modalResumeButton.textContent = "再開";
+            return;
+          }
+          state.breakRemainingSeconds = Math.max(
+            0,
+            Math.ceil((state.breakEndsAtMs - Date.now()) / 1000)
+          );
+          if (state.breakRemainingSeconds > 0) {
+            elements.breakTimerText.textContent = `再開まで ${state.breakRemainingSeconds} 秒`;
+            elements.modalResumeButton.disabled = true;
+            elements.modalResumeButton.textContent = "休憩中";
+          } else {
+            elements.breakTimerText.textContent = "1分経過しました。再開できます。";
+            elements.modalResumeButton.disabled = false;
+            elements.modalResumeButton.textContent = "再開";
+            if (state.breakTimerId) {
+              window.clearInterval(state.breakTimerId);
+              state.breakTimerId = null;
+            }
+          }
+          updateUi();
+        }
+
+        function startBreak(previousPhase, forced, customText) {
+          clearBreakTimer();
+          state.previousPhase = previousPhase;
+          state.phase = "break";
+          state.breakForced = Boolean(forced);
+          if (state.breakForced) {
+            state.breakEndsAtMs =
+              Date.now() + Math.max(1, Config.forcedBreakSeconds) * 1000;
+            elements.breakText.textContent = `${Config.breakInterval}試行が終了しました。1分間休憩してください。`;
+            updateBreakTimer();
+            state.breakTimerId = window.setInterval(updateBreakTimer, 250);
+          } else {
+            elements.breakText.textContent =
+              customText || "任意休憩中です。準備ができたら再開してください。";
+          }
+          elements.breakModal.classList.remove("hidden");
+          setMessage("休憩中です。", "info");
+          updateUi();
+          Renderer.draw();
+        }
+
+        function pauseExperiment() {
+          if (!isTaskPhase(state.phase)) {
+            return;
+          }
+          if (state.activeTrial) {
+            retryTrial("manual_pause", state.pointer);
+          }
+          state.previousPhase = activePhase();
+          state.phase = "paused";
+          elements.breakText.textContent = "任意休憩中です。準備ができたら再開してください。";
+          elements.breakModal.classList.remove("hidden");
+          setMessage("任意休憩中です。", "info");
+          updateUi();
+          Renderer.draw();
+        }
+
+        function resumeAfterBreak() {
+          if (!["break", "paused"].includes(state.phase)) {
+            return;
+          }
+          if (state.breakForced && state.breakRemainingSeconds > 0) {
+            setMessage("1分間の休憩が終わるまで再開できません。", "warn");
+            updateBreakTimer();
+            return;
+          }
+          const nextPhase = state.previousPhase || "practice";
+          clearBreakTimer();
+          state.previousPhase = null;
+          elements.breakModal.classList.add("hidden");
+          state.phase = nextPhase;
+          prepareTrial("再開しました。開始円の内側で押してください。");
+        }
+
+        function finishExperiment(message) {
+          clearBreakTimer();
+          state.phase = "ended";
+          state.previousPhase = null;
+          state.pendingPhase = null;
+          state.activeTrial = null;
+          elements.breakModal.classList.add("hidden");
+          elements.phaseModal.classList.add("hidden");
+          elements.endText.textContent =
+            message || "全試行が終了しました。記録済みの結果を保存してください。";
+          elements.endModal.classList.remove("hidden");
+          setMessage("実験が終了しました。CSVまたはJSONを保存してください。", "good");
+          updateUi();
+          Renderer.draw();
+        }
+
+        function abortExperiment() {
+          if (state.activeTrial) {
+            retryTrial("experiment_aborted", state.pointer);
+          }
+          clearBreakTimer();
+          state.phase = "aborted";
+          state.previousPhase = null;
+          state.pendingPhase = null;
+          state.activeTrial = null;
+          elements.breakModal.classList.add("hidden");
+          elements.phaseModal.classList.add("hidden");
+          elements.endText.textContent =
+            "実験を途中終了しました。記録済みの結果を保存できます。";
+          elements.endModal.classList.remove("hidden");
+          setMessage("実験を途中終了しました。記録済みデータを保存できます。", "warn");
+          updateUi();
+          Renderer.draw();
+        }
+
+        function submitQuestionnaire(event) {
+          event.preventDefault();
+          const form = elements.questionnaireForm;
+          if (!form.reportValidity()) {
+            return;
+          }
+          const formData = new FormData(form);
+          state.questionnaire = {
+            submittedAtIso: nowIso(),
+            ease: Number(formData.get("ease")),
+            fatigue: Number(formData.get("fatigue")),
+            difficulty: Number(formData.get("difficulty")),
+            comment: String(formData.get("comment") || "").trim()
+          };
+          finishExperiment(
+            "アンケートまで完了しました。記録済みの結果を保存してください。"
+          );
+        }
+
+        function saveCsv() {
+          if (state.results.length === 0) {
+            setMessage("保存できる試行データがまだありません。", "warn");
+            return;
+          }
+          DataExport.download(
+            DataExport.makeFilename("csv"),
+            DataExport.makeCsv(state.results),
+            "text/csv;charset=utf-8"
+          );
+          setMessage("CSV保存を開始しました。", "good");
+        }
+
+        function saveJson() {
+          if (state.results.length === 0) {
+            setMessage("保存できる試行データがまだありません。", "warn");
+            return;
+          }
+          DataExport.download(
+            DataExport.makeFilename("json"),
+            DataExport.makeJson(),
+            "application/json;charset=utf-8"
+          );
+          setMessage("JSON保存を開始しました。", "good");
+        }
+
+        function handlePointerDown(event) {
+          event.preventDefault();
+          const point = Geometry.getCanvasPoint(elements.taskCanvas, event);
+          startTrial(point, event);
+        }
+
+        function handlePointerMove(event) {
+          const point = Geometry.getCanvasPoint(elements.taskCanvas, event);
+          recordMove(point);
+        }
+
+        function handlePointerUp(event) {
+          const point = Geometry.getCanvasPoint(elements.taskCanvas, event);
+          if (state.activeTrial) {
+            completeFromPointerUp(point);
+          }
+          if (event.pointerId !== undefined && elements.taskCanvas.hasPointerCapture(event.pointerId)) {
+            elements.taskCanvas.releasePointerCapture(event.pointerId);
+          }
+        }
+
+        function handlePointerCancel(event) {
+          const point = Geometry.getCanvasPoint(elements.taskCanvas, event);
+          if (state.activeTrial) {
+            retryTrial("pointer_cancel", point);
+          }
+        }
+
+        function handleKeyDown(event) {
+          if (event.key === "Escape") {
+            if (state.activeTrial) {
+              event.preventDefault();
+              retryTrial("manual_abort", state.pointer);
+            }
+            return;
+          }
+          if (event.key === "Enter") {
+            if (["break", "paused"].includes(state.phase)) {
+              event.preventDefault();
+              resumeAfterBreak();
+            }
+          }
+        }
+
+        function handleResize() {
+          if (!elements.taskCanvas || elements.experimentScreen.classList.contains("hidden")) {
+            return;
+          }
+          const condition = currentCondition();
+          if (
+            condition &&
+            (isTaskPhase(state.phase) || ["break", "paused"].includes(state.phase))
+          ) {
+            state.currentPath = Geometry.makePath(elements.taskCanvas, condition);
+          }
+          Renderer.draw();
+        }
+
+        function bindEvents() {
+          elements.participantForm.addEventListener("submit", startExperiment);
+          elements.conditionToggleGroup.addEventListener("change", () => {
+            if (selectedConditionIds().length > 0) {
+              elements.conditionSelectionError.classList.add("hidden");
+            }
+          });
+          elements.questionnaireForm.addEventListener("submit", submitQuestionnaire);
+          elements.taskCanvas.addEventListener("pointerdown", handlePointerDown);
+          elements.taskCanvas.addEventListener("pointermove", handlePointerMove);
+          elements.taskCanvas.addEventListener("pointerup", handlePointerUp);
+          elements.taskCanvas.addEventListener("pointercancel", handlePointerCancel);
+          elements.pauseButton.addEventListener("click", pauseExperiment);
+          elements.resumeButton.addEventListener("click", resumeAfterBreak);
+          elements.phaseModalButton.addEventListener("click", proceedPhaseTransition);
+          elements.modalResumeButton.addEventListener("click", resumeAfterBreak);
+          elements.abortTrialButton.addEventListener("click", () => {
+            if (state.activeTrial) {
+              retryTrial("manual_abort", state.pointer);
+            }
+          });
+          elements.endButton.addEventListener("click", abortExperiment);
+          elements.saveCsvButton.addEventListener("click", saveCsv);
+          elements.saveJsonButton.addEventListener("click", saveJson);
+          elements.modalSaveCsvButton.addEventListener("click", saveCsv);
+          elements.modalSaveJsonButton.addEventListener("click", saveJson);
+          window.addEventListener("keydown", handleKeyDown);
+          window.addEventListener("resize", handleResize);
+          window.addEventListener("blur", () => {
+            if (state.activeTrial) {
+              retryTrial("window_blur", state.pointer);
+            }
+          });
+        }
+
+        function init() {
+          collectElements();
+          renderConditionChoices();
+          bindEvents();
+          updateUi();
+        }
+
+        document.addEventListener("DOMContentLoaded", init);
+      })();
+    </script>
+  </body>
+</html>
