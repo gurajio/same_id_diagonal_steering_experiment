@@ -1,0 +1,36 @@
+===== MixedLM random slope failed =====
+
+Singular matrix
+
+MixedLM failed completely:
+
+Singular matrix
+
+
+===== GEE Binomial: error ~ logN * condition =====
+
+                               GEE Regression Results                              
+===================================================================================
+Dep. Variable:                   error_int   No. Observations:                  325
+Model:                                 GEE   No. clusters:                        1
+Method:                        Generalized   Min. cluster size:                 325
+                      Estimating Equations   Max. cluster size:                 325
+Family:                           Binomial   Mean cluster size:               325.0
+Dependence structure:         Independence   Num. iterations:                     2
+Date:                     Mon, 22 Jun 2026   Scale:                           1.000
+Covariance type:                    robust   Time:                         17:05:32
+=====================================================================================================
+                                        coef    std err          z      P>|z|      [0.025      0.975]
+-----------------------------------------------------------------------------------------------------
+Intercept                            -1.1602   1.57e-15   -7.4e+14      0.000      -1.160      -1.160
+C(condition)[T.width_narrow]               0          0        nan        nan           0           0
+C(condition)[T.length_long]                0          0        nan        nan           0           0
+C(condition)[T.length_short]               0          0        nan        nan           0           0
+logN                                  0.3249   3.04e-16   1.07e+15      0.000       0.325       0.325
+logN:C(condition)[T.width_narrow]          0          0        nan        nan           0           0
+logN:C(condition)[T.length_long]           0          0        nan        nan           0           0
+logN:C(condition)[T.length_short]          0          0        nan        nan           0           0
+==============================================================================
+Skew:                         -0.3727   Kurtosis:                      -1.7506
+Centered skew:                -0.3727   Centered kurtosis:             -1.7506
+==============================================================================

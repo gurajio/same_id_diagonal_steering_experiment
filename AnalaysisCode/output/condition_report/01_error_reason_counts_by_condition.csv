@@ -1,0 +1,5 @@
+﻿condition_number,condition,condition_label,error_text,n_trials,condition_total,percent_in_condition
+1,width_wide,Wide-width A1000 W50 ID20 / C1,deviation,99,325,30.461538461538463
+1,width_wide,Wide-width A1000 W50 ID20 / C1,excessive_deviation,37,325,11.384615384615385
+1,width_wide,Wide-width A1000 W50 ID20 / C1,near_goal_pointerup,58,325,17.846153846153847
+1,width_wide,Wide-width A1000 W50 ID20 / C1,none,131,325,40.30769230769231

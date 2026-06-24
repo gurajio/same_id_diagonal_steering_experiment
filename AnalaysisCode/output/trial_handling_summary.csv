@@ -1,0 +1,2 @@
+﻿USE_SUCCESS_TRIALS_ONLY,INCLUDE_DEVIATED_TRIALS,DEVIATION_EXCLUSION_RATIO,DELETE_OUTLIER,OUTLIER_SIGMA,n_counted_trials,n_error_counted,n_excluded_by_deviation_ratio,n_performance_before_outlier,n_mt_outlier,n_performance_after_outlier,n_success_clean_for_tpe,n_success_with_deviation_for_tpe,n_TPe_clean,n_TPe_with_deviation
+True,True,0.8,True,3.0,325,194,0,267,3,264,264,267,264,267

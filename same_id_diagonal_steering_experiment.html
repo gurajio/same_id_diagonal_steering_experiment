@@ -769,6 +769,7 @@
             <span class="chip"><strong>参加者</strong><span id="participantChip">-</span></span>
           </div>
           <div class="toolbar">
+            <button id="fullscreenButton" type="button" class="ghost-button">全画面</button>
             <button id="pauseButton" type="button" class="ghost-button">休憩</button>
             <button id="resumeButton" type="button" class="ghost-button" disabled>再開</button>
             <button id="abortTrialButton" type="button" class="ghost-button">試行中断</button>
@@ -903,7 +904,7 @@
       <section class="modal-box">
         <h2 id="endTitle">実験終了</h2>
         <p id="endText" class="lead">
-          記録済みの結果をCSVまたはJSONで保存してください。
+          CSVを自動保存しました。
         </p>
         <div class="modal-actions">
           <button id="modalSaveCsvButton" type="button">CSV保存</button>
@@ -928,6 +929,11 @@
           "handedness",
           "mouseExperience",
           "experimentMode",
+          "questionnaireSubmittedAtIso",
+          "questionnaireEase",
+          "questionnaireFatigue",
+          "questionnaireDifficulty",
+          "questionnaireComment",
           "phase",
           "conditionId",
           "conditionName",
@@ -1023,6 +1029,7 @@
             "conditionChip",
             "trialChip",
             "participantChip",
+            "fullscreenButton",
             "pauseButton",
             "resumeButton",
             "abortTrialButton",
@@ -1678,14 +1685,16 @@
             ctx.save();
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
-            ctx.strokeStyle = trial.deviated ? "#d83b32" : "#172033";
             ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            ctx.moveTo(points[0].x, points[0].y);
             for (let i = 1; i < points.length; i += 1) {
-              ctx.lineTo(points[i].x, points[i].y);
+              const previous = points[i - 1];
+              const current = points[i];
+              ctx.strokeStyle = current.outside ? "#d83b32" : "#172033";
+              ctx.beginPath();
+              ctx.moveTo(previous.x, previous.y);
+              ctx.lineTo(current.x, current.y);
+              ctx.stroke();
             }
-            ctx.stroke();
             ctx.restore();
           },
 
@@ -1747,8 +1756,12 @@
           makeCsv(results) {
             const lines = [CSV_COLUMNS.join(",")];
             results.forEach((row) => {
+              const exportRow = {
+                ...row,
+                ...questionnaireCsvFields()
+              };
               lines.push(
-                CSV_COLUMNS.map((column) => this.csvEscape(row[column])).join(",")
+                CSV_COLUMNS.map((column) => this.csvEscape(exportRow[column])).join(",")
               );
             });
             return `${lines.join("\n")}\n`;
@@ -1840,10 +1853,172 @@
           ].join("");
         }
 
+        function questionnaireCsvFields() {
+          const questionnaire = state.questionnaire || {};
+          return {
+            questionnaireSubmittedAtIso: questionnaire.submittedAtIso || "",
+            questionnaireEase: questionnaire.ease || "",
+            questionnaireFatigue: questionnaire.fatigue || "",
+            questionnaireDifficulty: questionnaire.difficulty || "",
+            questionnaireComment: questionnaire.comment || ""
+          };
+        }
+
+        function downloadCsvIfAvailable() {
+          if (state.results.length === 0) {
+            return false;
+          }
+          DataExport.download(
+            DataExport.makeFilename("csv"),
+            DataExport.makeCsv(state.results),
+            "text/csv;charset=utf-8"
+          );
+          return true;
+        }
+
         function setMessage(text, tone) {
           elements.messageBar.textContent = text;
           elements.messageBar.dataset.tone = tone || "info";
           state.lastMessageTone = tone || "info";
+        }
+
+        function currentFullscreenElement() {
+          return document.fullscreenElement || document.webkitFullscreenElement || null;
+        }
+
+        function fullscreenRequestMethod(target) {
+          return target.requestFullscreen || target.webkitRequestFullscreen || null;
+        }
+
+        function fullscreenExitMethod() {
+          return document.exitFullscreen || document.webkitExitFullscreen || null;
+        }
+
+        function fullscreenSupported() {
+          return Boolean(
+            document.fullscreenEnabled ||
+              document.webkitFullscreenEnabled ||
+              fullscreenRequestMethod(elements.experimentScreen || document.documentElement)
+          );
+        }
+
+        function updateFullscreenButton() {
+          if (!elements.fullscreenButton) {
+            return;
+          }
+          elements.fullscreenButton.disabled = !fullscreenSupported();
+          elements.fullscreenButton.textContent = currentFullscreenElement()
+            ? "全画面解除"
+            : "全画面";
+        }
+
+        function requestAppFullscreen(options) {
+          const silent = Boolean(options && options.silent);
+          if (!fullscreenSupported() || currentFullscreenElement()) {
+            updateFullscreenButton();
+            return;
+          }
+          const target = elements.experimentScreen || document.documentElement;
+          const request = fullscreenRequestMethod(target);
+          if (!request) {
+            if (!silent) {
+              setMessage("このブラウザでは全画面表示を開始できません。", "warn");
+            }
+            updateFullscreenButton();
+            return;
+          }
+          try {
+            const result = request.call(target);
+            if (result && typeof result.catch === "function") {
+              result.catch(() => {
+                if (!silent) {
+                  setMessage("全画面表示を開始できませんでした。", "warn");
+                }
+                updateFullscreenButton();
+              });
+            }
+          } catch (error) {
+            if (!silent) {
+              setMessage("全画面表示を開始できませんでした。", "warn");
+            }
+          }
+          updateFullscreenButton();
+        }
+
+        function exitAppFullscreen() {
+          const exit = fullscreenExitMethod();
+          if (!currentFullscreenElement() || !exit) {
+            updateFullscreenButton();
+            return;
+          }
+          const result = exit.call(document);
+          if (result && typeof result.catch === "function") {
+            result.catch(() => {
+              setMessage("全画面表示を解除できませんでした。", "warn");
+              updateFullscreenButton();
+            });
+          }
+          updateFullscreenButton();
+        }
+
+        function toggleFullscreen() {
+          if (currentFullscreenElement()) {
+            exitAppFullscreen();
+          } else {
+            requestAppFullscreen({ silent: false });
+          }
+        }
+
+        function resetFormsForNextSession() {
+          elements.participantForm.reset();
+          renderConditionChoices();
+          elements.questionnaireForm.reset();
+          elements.conditionSelectionError.classList.add("hidden");
+        }
+
+        function resetStateForNextSession() {
+          state.phase = "idle";
+          state.previousPhase = null;
+          state.pendingPhase = null;
+          state.mode = "main";
+          state.participant = null;
+          state.assignedCondition = null;
+          state.selectedConditions = [];
+          state.postSequence = [];
+          state.practiceConditionIndex = 0;
+          state.practiceConditionCompleted = 0;
+          state.pilotConditionIndex = 0;
+          state.pilotConditionCompleted = 0;
+          state.practiceCompleted = 0;
+          state.postCompleted = 0;
+          state.pilotCompleted = 0;
+          state.countedTotal = 0;
+          state.attemptNumber = 0;
+          state.currentPath = null;
+          state.activeTrial = null;
+          state.pointer = null;
+          state.results = [];
+          state.questionnaire = null;
+          state.lastMessageTone = "info";
+        }
+
+        function returnToStartScreen() {
+          clearBreakTimer();
+          state.activeTrial = null;
+          elements.breakModal.classList.add("hidden");
+          elements.phaseModal.classList.add("hidden");
+          elements.endModal.classList.add("hidden");
+          elements.experimentScreen.classList.add("hidden");
+          elements.startScreen.classList.remove("hidden");
+          exitAppFullscreen();
+          resetStateForNextSession();
+          resetFormsForNextSession();
+          setMessage(
+            "開始円の内側で押して，終了円内でポインタを離してください。",
+            "info"
+          );
+          updateUi();
+          Renderer.draw();
         }
 
         function updateUi() {
@@ -1913,6 +2088,7 @@
           elements.saveJsonButton.disabled = state.results.length === 0;
           elements.modalSaveCsvButton.disabled = state.results.length === 0;
           elements.modalSaveJsonButton.disabled = state.results.length === 0;
+          updateFullscreenButton();
 
           renderConditionList();
           renderSummary();
@@ -2095,6 +2271,7 @@
           elements.endModal.classList.add("hidden");
           elements.phaseModal.classList.add("hidden");
           elements.breakModal.classList.add("hidden");
+          requestAppFullscreen({ silent: true });
           requestAnimationFrame(() => {
             const firstCondition = currentCondition();
             prepareTrial(
@@ -2138,7 +2315,15 @@
                 : phaseConditionIndex(phase) + 1,
             startedPerf: performance.now(),
             startedAtIso: nowIso(),
-            trajectory: [{ x: point.x, y: point.y, t: 0 }],
+            trajectory: [
+              {
+                x: Math.round(point.x * 10) / 10,
+                y: Math.round(point.y * 10) / 10,
+                t: 0,
+                outside: false,
+                outsidePx: 0
+              }
+            ],
             deviated: false,
             deviationCount: 0,
             deviationTotalMs: 0,
@@ -2166,7 +2351,9 @@
           trial.trajectory.push({
             x: Math.round(point.x * 10) / 10,
             y: Math.round(point.y * 10) / 10,
-            t: Math.round(elapsed)
+            t: Math.round(elapsed),
+            outside: !deviation.inside,
+            outsidePx: roundedOutside
           });
           if (!deviation.inside) {
             trial.deviated = true;
@@ -2428,9 +2615,7 @@
 
         function finishTaskPhase(phase) {
           if (phase === "pilot") {
-            finishExperiment(
-              "予備実験の全選択条件が終了しました。記録済みの結果を保存してください。"
-            );
+            finishExperiment();
             return;
           }
 
@@ -2606,39 +2791,22 @@
           prepareTrial("再開しました。開始円の内側で押してください。");
         }
 
-        function finishExperiment(message) {
+        function finishExperiment() {
           clearBreakTimer();
           state.phase = "ended";
           state.previousPhase = null;
           state.pendingPhase = null;
           state.activeTrial = null;
-          elements.breakModal.classList.add("hidden");
-          elements.phaseModal.classList.add("hidden");
-          elements.endText.textContent =
-            message || "全試行が終了しました。記録済みの結果を保存してください。";
-          elements.endModal.classList.remove("hidden");
-          setMessage("実験が終了しました。CSVまたはJSONを保存してください。", "good");
-          updateUi();
-          Renderer.draw();
+          downloadCsvIfAvailable();
+          returnToStartScreen();
         }
 
         function abortExperiment() {
           if (state.activeTrial) {
             retryTrial("experiment_aborted", state.pointer);
           }
-          clearBreakTimer();
-          state.phase = "aborted";
-          state.previousPhase = null;
-          state.pendingPhase = null;
-          state.activeTrial = null;
-          elements.breakModal.classList.add("hidden");
-          elements.phaseModal.classList.add("hidden");
-          elements.endText.textContent =
-            "実験を途中終了しました。記録済みの結果を保存できます。";
-          elements.endModal.classList.remove("hidden");
-          setMessage("実験を途中終了しました。記録済みデータを保存できます。", "warn");
-          updateUi();
-          Renderer.draw();
+          downloadCsvIfAvailable();
+          returnToStartScreen();
         }
 
         function submitQuestionnaire(event) {
@@ -2655,21 +2823,14 @@
             difficulty: Number(formData.get("difficulty")),
             comment: String(formData.get("comment") || "").trim()
           };
-          finishExperiment(
-            "アンケートまで完了しました。記録済みの結果を保存してください。"
-          );
+          finishExperiment();
         }
 
         function saveCsv() {
-          if (state.results.length === 0) {
+          if (!downloadCsvIfAvailable()) {
             setMessage("保存できる試行データがまだありません。", "warn");
             return;
           }
-          DataExport.download(
-            DataExport.makeFilename("csv"),
-            DataExport.makeCsv(state.results),
-            "text/csv;charset=utf-8"
-          );
           setMessage("CSV保存を開始しました。", "good");
         }
 
@@ -2756,6 +2917,7 @@
           elements.taskCanvas.addEventListener("pointermove", handlePointerMove);
           elements.taskCanvas.addEventListener("pointerup", handlePointerUp);
           elements.taskCanvas.addEventListener("pointercancel", handlePointerCancel);
+          elements.fullscreenButton.addEventListener("click", toggleFullscreen);
           elements.pauseButton.addEventListener("click", pauseExperiment);
           elements.resumeButton.addEventListener("click", resumeAfterBreak);
           elements.phaseModalButton.addEventListener("click", proceedPhaseTransition);
@@ -2772,6 +2934,8 @@
           elements.modalSaveJsonButton.addEventListener("click", saveJson);
           window.addEventListener("keydown", handleKeyDown);
           window.addEventListener("resize", handleResize);
+          document.addEventListener("fullscreenchange", updateFullscreenButton);
+          document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
           window.addEventListener("blur", () => {
             if (state.activeTrial) {
               retryTrial("window_blur", state.pointer);

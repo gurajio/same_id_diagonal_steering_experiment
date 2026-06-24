@@ -1,0 +1,7 @@
+﻿condition_number,condition,condition_label,metric,reason,n_trials,percent
+1,width_wide,Wide-width A1000 W50 ID20 / C1,MT,included,264,81.23076923076923
+1,width_wide,Wide-width A1000 W50 ID20 / C1,MT,mt_outlier,3,0.9230769230769231
+1,width_wide,Wide-width A1000 W50 ID20 / C1,MT,not_performance_trial,58,17.846153846153847
+1,width_wide,Wide-width A1000 W50 ID20 / C1,TPe,included,264,81.23076923076923
+1,width_wide,Wide-width A1000 W50 ID20 / C1,TPe,mt_outlier,3,0.9230769230769231
+1,width_wide,Wide-width A1000 W50 ID20 / C1,TPe,not_performance_trial,58,17.846153846153847
