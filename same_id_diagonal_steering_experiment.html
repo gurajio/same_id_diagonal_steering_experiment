@@ -747,8 +747,8 @@
           <section class="briefing-panel" aria-labelledby="briefingTitle">
             <h2 id="briefingTitle">実験前説明</h2>
             <ol class="briefing-list">
-              <li>開始円の内側でポインタを押すと計測が始まります。</li>
-              <li>表示された斜め直線の通路に沿って終了円まで移動し，終了円内でポインタを離してください。</li>
+              <li>START領域内でポインタを押すと計測が始まります。</li>
+              <li>表示された斜め直線の通路に沿ってEND領域まで移動し，END領域内でポインタを離してください。</li>
               <li>通路からはみ出しても試行は継続し，逸脱情報が記録されます。</li>
               <li>途中でポインタを離した場合は，同じ試行をやり直します。</li>
               <li>ゴール直前でポインタを離した場合は，分析対象エラーとして記録されます。</li>
@@ -824,7 +824,7 @@
               <canvas id="taskCanvas" aria-label="斜め直線ステアリング課題キャンバス"></canvas>
             </div>
             <div id="messageBar" class="message-bar" data-tone="info">
-              開始円の内側で押して，終了円内でポインタを離してください。
+              START領域内で押して，END領域内でポインタを離してください。
             </div>
           </section>
         </div>
@@ -1378,11 +1378,7 @@
             const angle = (display.diagonalAngleDeg * Math.PI) / 180;
             const dx = Math.cos(angle) * condition.amplitude;
             const dy = -Math.sin(angle) * condition.amplitude;
-            const endpointRadius = Math.max(
-              condition.width * 0.92,
-              display.minEndpointRadiusPx
-            );
-            const padding = display.marginPx + endpointRadius;
+            const padding = display.marginPx;
             const requiredWidth = Math.ceil(Math.abs(dx) + padding * 2);
             const requiredHeight = Math.ceil(Math.abs(dy) + padding * 2);
             const shell = canvas.parentElement;
@@ -1442,15 +1438,24 @@
               condition.width * scale,
               display.minCorridorWidthPx
             );
-            const radius = Math.max(
-              displayWidth * 0.92,
-              display.minEndpointRadiusPx
-            );
             const center = { x: size.width / 2, y: size.height / 2 };
             const dx = direction.x * displayLength;
             const dy = direction.y * displayLength;
             const start = { x: center.x - dx / 2, y: center.y - dy / 2 };
             const end = { x: center.x + dx / 2, y: center.y + dy / 2 };
+            const cornerAlongValues = [
+              { x: 0, y: 0 },
+              { x: size.width, y: 0 },
+              { x: size.width, y: size.height },
+              { x: 0, y: size.height }
+            ].map(
+              (point) =>
+                (point.x - start.x) * direction.x +
+                (point.y - start.y) * direction.y
+            );
+            const renderStartAlong =
+              Math.min(...cornerAlongValues) - displayWidth;
+            const renderEndAlong = Math.max(...cornerAlongValues) + displayWidth;
             return {
               start,
               end,
@@ -1458,7 +1463,8 @@
               direction,
               displayLength,
               displayWidth,
-              radius,
+              renderStartAlong,
+              renderEndAlong,
               scale,
               angle,
               size
@@ -1473,10 +1479,25 @@
             };
           },
 
-          isInsideCircle(point, center, radius) {
-            const dx = point.x - center.x;
-            const dy = point.y - center.y;
-            return dx * dx + dy * dy <= radius * radius;
+          getPathCoordinates(point, path) {
+            const dx = point.x - path.start.x;
+            const dy = point.y - path.start.y;
+            return {
+              along: dx * path.direction.x + dy * path.direction.y,
+              perpendicular: dx * -path.direction.y + dy * path.direction.x
+            };
+          },
+
+          isInsideEndpointZone(point, path, endpoint) {
+            const coords = this.getPathCoordinates(point, path);
+            const half = path.displayWidth / 2;
+            if (Math.abs(coords.perpendicular) > half) {
+              return false;
+            }
+            if (endpoint === "start") {
+              return coords.along <= 0;
+            }
+            return coords.along >= path.displayLength;
           },
 
           getProjection(point, path) {
@@ -1497,36 +1518,14 @@
             };
           },
 
-          pointToSegmentDistance(point, a, b) {
-            const vx = b.x - a.x;
-            const vy = b.y - a.y;
-            const lengthSquared = vx * vx + vy * vy;
-            if (!lengthSquared) {
-              return Math.hypot(point.x - a.x, point.y - a.y);
-            }
-            const t = clamp(
-              ((point.x - a.x) * vx + (point.y - a.y) * vy) / lengthSquared,
-              0,
-              1
-            );
-            const px = a.x + vx * t;
-            const py = a.y + vy * t;
-            return Math.hypot(point.x - px, point.y - py);
-          },
-
           getCorridorDeviation(point, path) {
-            const distance = this.pointToSegmentDistance(
-              point,
-              path.start,
-              path.end
-            );
-            const insideStart = this.isInsideCircle(point, path.start, path.radius);
-            const insideEnd = this.isInsideCircle(point, path.end, path.radius);
-            const outsidePx = Math.max(0, distance - path.displayWidth / 2);
+            const coords = this.getPathCoordinates(point, path);
+            const half = path.displayWidth / 2;
+            const outsidePx = Math.max(Math.abs(coords.perpendicular) - half, 0);
             return {
-              distance,
-              outsidePx: insideStart || insideEnd ? 0 : outsidePx,
-              inside: insideStart || insideEnd || outsidePx <= 0
+              distance: Math.abs(coords.perpendicular),
+              outsidePx,
+              inside: outsidePx <= 0
             };
           },
 
@@ -1600,36 +1599,39 @@
             ctx.restore();
           },
 
-          drawCorridor(ctx, path) {
+          drawCorridorSegment(ctx, path, fromAlong, toAlong, fillStyle, strokeStyle) {
             const normal = {
               x: -path.direction.y,
               y: path.direction.x
             };
             const half = path.displayWidth / 2;
+            const segmentStart = {
+              x: path.start.x + path.direction.x * fromAlong,
+              y: path.start.y + path.direction.y * fromAlong
+            };
+            const segmentEnd = {
+              x: path.start.x + path.direction.x * toAlong,
+              y: path.start.y + path.direction.y * toAlong
+            };
             const p1 = {
-              x: path.start.x + normal.x * half,
-              y: path.start.y + normal.y * half
+              x: segmentStart.x + normal.x * half,
+              y: segmentStart.y + normal.y * half
             };
             const p2 = {
-              x: path.end.x + normal.x * half,
-              y: path.end.y + normal.y * half
+              x: segmentEnd.x + normal.x * half,
+              y: segmentEnd.y + normal.y * half
             };
             const p3 = {
-              x: path.end.x - normal.x * half,
-              y: path.end.y - normal.y * half
+              x: segmentEnd.x - normal.x * half,
+              y: segmentEnd.y - normal.y * half
             };
             const p4 = {
-              x: path.start.x - normal.x * half,
-              y: path.start.y - normal.y * half
+              x: segmentStart.x - normal.x * half,
+              y: segmentStart.y - normal.y * half
             };
 
-            ctx.save();
-            ctx.fillStyle = getComputedStyle(document.documentElement)
-              .getPropertyValue("--corridor")
-              .trim();
-            ctx.strokeStyle = getComputedStyle(document.documentElement)
-              .getPropertyValue("--corridor-border")
-              .trim();
+            ctx.fillStyle = fillStyle;
+            ctx.strokeStyle = strokeStyle;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
@@ -1639,6 +1641,31 @@
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
+          },
+
+          pointAlongPath(path, along) {
+            return {
+              x: path.start.x + path.direction.x * along,
+              y: path.start.y + path.direction.y * along
+            };
+          },
+
+          drawCorridor(ctx, path) {
+            ctx.save();
+            const fillStyle = getComputedStyle(document.documentElement)
+              .getPropertyValue("--corridor")
+              .trim();
+            const strokeStyle = getComputedStyle(document.documentElement)
+              .getPropertyValue("--corridor-border")
+              .trim();
+            this.drawCorridorSegment(
+              ctx,
+              path,
+              path.renderStartAlong,
+              path.renderEndAlong,
+              fillStyle,
+              strokeStyle
+            );
 
             ctx.strokeStyle = "#8fb4f2";
             ctx.lineWidth = 1.5;
@@ -1652,28 +1679,38 @@
 
           drawEndpointLabels(ctx, path) {
             ctx.save();
-            ctx.lineWidth = 2;
-            ctx.fillStyle = "#e8f7ee";
-            ctx.strokeStyle = "#16794c";
-            ctx.beginPath();
-            ctx.arc(path.start.x, path.start.y, path.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = "#fff2e3";
-            ctx.strokeStyle = "#c87300";
-            ctx.beginPath();
-            ctx.arc(path.end.x, path.end.y, path.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+            this.drawCorridorSegment(
+              ctx,
+              path,
+              path.renderStartAlong,
+              0,
+              "#e8f7ee",
+              "#16794c"
+            );
+            this.drawCorridorSegment(
+              ctx,
+              path,
+              path.displayLength,
+              path.renderEndAlong,
+              "#fff2e3",
+              "#c87300"
+            );
+            const startLabel = this.pointAlongPath(
+              path,
+              path.renderStartAlong / 2
+            );
+            const endLabel = this.pointAlongPath(
+              path,
+              (path.displayLength + path.renderEndAlong) / 2
+            );
 
             ctx.font = "700 12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillStyle = "#16794c";
-            ctx.fillText("START", path.start.x, path.start.y);
+            ctx.fillText("START", startLabel.x, startLabel.y);
             ctx.fillStyle = "#9a6700";
-            ctx.fillText("END", path.end.x, path.end.y);
+            ctx.fillText("END", endLabel.x, endLabel.y);
             ctx.restore();
           },
 
@@ -2014,7 +2051,7 @@
           resetStateForNextSession();
           resetFormsForNextSession();
           setMessage(
-            "開始円の内側で押して，終了円内でポインタを離してください。",
+            "START領域内で押して，END領域内でポインタを離してください。",
             "info"
           );
           updateUi();
@@ -2275,7 +2312,7 @@
           requestAnimationFrame(() => {
             const firstCondition = currentCondition();
             prepareTrial(
-              `${mode.name}を開始します。${firstCondition.id} ${firstCondition.name} から提示します。開始円の内側で押してください。`
+              `${mode.name}を開始します。${firstCondition.id} ${firstCondition.name} から提示します。START領域内で押してください。`
             );
           });
         }
@@ -2287,8 +2324,8 @@
           const condition = currentCondition();
           const path = state.currentPath || Geometry.makePath(elements.taskCanvas, condition);
           state.currentPath = path;
-          if (!Geometry.isInsideCircle(point, path.start, path.radius)) {
-            setMessage("開始円の内側から開始してください。", "warn");
+          if (!Geometry.isInsideEndpointZone(point, path, "start")) {
+            setMessage("START領域内から開始してください。", "warn");
             state.pointer = { ...point, outside: false };
             Renderer.draw();
             return;
@@ -2333,7 +2370,7 @@
             openDeviation: null
           };
           state.pointer = { ...point, outside: false };
-          setMessage("計測中です。終了円内でポインタを離してください。", "info");
+          setMessage("計測中です。END領域内でポインタを離してください。", "info");
           updateUi();
           Renderer.draw();
         }
@@ -2409,7 +2446,7 @@
             return;
           }
           const progress = Geometry.getPathProgress(point, trial.path);
-          if (Geometry.isInsideCircle(point, trial.path.end, trial.path.radius)) {
+          if (Geometry.isInsideEndpointZone(point, trial.path, "end")) {
             completeCountedTrial(point, true, "goal_reached");
             return;
           }
@@ -2575,10 +2612,10 @@
 
           const nextMessage =
             phase === "post"
-              ? "次の事後試行です。開始円の内側で押してください。"
+              ? "次の事後試行です。START領域内で押してください。"
               : phase === "pilot"
-                ? "次の予備試行です。開始円の内側で押してください。"
-                : "次の反復試行です。開始円の内側で押してください。";
+                ? "次の予備試行です。START領域内で押してください。"
+                : "次の反復試行です。START領域内で押してください。";
           prepareTrial(nextMessage);
         }
 
@@ -2666,13 +2703,13 @@
 
           if (nextPhase === "post") {
             state.phase = "post";
-            prepareTrial("事後試行を開始します。開始円の内側で押してください。");
+            prepareTrial("事後試行を開始します。START領域内で押してください。");
             return;
           }
 
           if (isTaskPhase(nextPhase)) {
             state.phase = nextPhase;
-            prepareTrial("次の条件を開始します。開始円の内側で押してください。");
+            prepareTrial("次の条件を開始します。START領域内で押してください。");
             return;
           }
 
@@ -2788,7 +2825,7 @@
           state.previousPhase = null;
           elements.breakModal.classList.add("hidden");
           state.phase = nextPhase;
-          prepareTrial("再開しました。開始円の内側で押してください。");
+          prepareTrial("再開しました。START領域内で押してください。");
         }
 
         function finishExperiment() {

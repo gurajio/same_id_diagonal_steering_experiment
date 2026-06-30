@@ -96,7 +96,6 @@
       diagonalAngleDeg: 32,
       marginPx: 88,
       minCorridorWidthPx: 8,
-      minEndpointRadiusPx: 14,
       exactPixels: true,
       maxDisplayScale: 1
     }),
