@@ -6,33 +6,33 @@
       id: "C1",
       name: "幅広条件",
       label: "A固定・W広い",
-      amplitude: 1000,
-      width: 50,
-      trials: 300
+      amplitude: 1050,
+      width: 30,
+      trials: 400
     },
     {
       id: "C2",
       name: "幅狭条件",
       label: "A固定・W狭い",
-      amplitude: 1000,
-      width: 20,
-      trials: 300
+      amplitude: 1050,
+      width: 21,
+      trials: 400
     },
     {
       id: "C3",
       name: "距離大条件",
       label: "W固定・A長い",
-      amplitude: 1500,
-      width: 30,
-      trials: 300
+      amplitude: 1250,
+      width: 25,
+      trials: 400
     },
     {
       id: "C4",
       name: "距離小条件",
       label: "W固定・A短い",
-      amplitude: 600,
-      width: 30,
-      trials: 300
+      amplitude: 875,
+      width: 25,
+      trials: 400
     }
   ];
 
@@ -48,12 +48,12 @@
   const postTrialsPerCondition = 25;
 
   window.SteeringExperimentConfig = Object.freeze({
-    appName: "同一ID斜め直線ステアリング課題 実験システム",
+    appName: "同一ID斜め直線ステアリング課題実験システム",
     appVersion: "1.0.0",
 
-    practiceTrials: 300,
+    practiceTrials: 400,
     postTrials: 100,
-    pilotTrials: 300,
+    pilotTrials: 400,
     breakInterval: 100,
     manualPauseInterval: 100,
     forcedBreakSeconds: 60,
@@ -62,8 +62,8 @@
       main: Object.freeze({
         id: "main",
         name: "本実験",
-        description: "反復試行，事後試行まで実施する",
-        practiceTrials: 300,
+        description: "反復試行から事後試行まで実施する",
+        practiceTrials: 400,
         postTrials: 100,
         hasPostPhase: true,
         forcedBreak: true
@@ -71,8 +71,8 @@
       pilot: Object.freeze({
         id: "pilot",
         name: "予備実験",
-        description: "選択した反復条件を300試行ずつ実施する",
-        trials: 300,
+        description: "選択した反復条件を400試行ずつ実施する",
+        trials: 400,
         hasPostPhase: false,
         forcedBreak: false,
         manualPause: true
@@ -93,6 +93,8 @@
     display: Object.freeze({
       diagonalAngleDeg: 30,
       marginPx: 88,
+      movementAreaPx: 200,
+      minEndpointLengthPx: 40,
       minCorridorWidthPx: 8,
       exactPixels: true,
       maxDisplayScale: 1
