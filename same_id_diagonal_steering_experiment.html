@@ -338,8 +338,53 @@
         grid-template-columns: minmax(0, 1fr);
       }
 
+      .experiment-screen.task-only .topbar {
+        padding-top: 6px;
+        padding-bottom: 6px;
+      }
+
       .experiment-screen.task-only .sidebar {
         display: none;
+      }
+
+      .experiment-screen.task-only .canvas-shell {
+        padding: 6px 12px;
+      }
+
+      .experiment-screen.task-only #taskCanvas {
+        height: calc(100vh - 104px);
+      }
+
+      .experiment-screen.task-only .message-bar {
+        min-height: 40px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+      }
+
+      .experiment-screen.fullscreen-task {
+        grid-template-rows: minmax(0, 1fr);
+      }
+
+      .experiment-screen.fullscreen-task .topbar,
+      .experiment-screen.fullscreen-task .sidebar,
+      .experiment-screen.fullscreen-task .message-bar {
+        display: none;
+      }
+
+      .experiment-screen.fullscreen-task .workspace {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .experiment-screen.fullscreen-task .canvas-shell {
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .experiment-screen.fullscreen-task #taskCanvas {
+        height: 100vh;
+        min-height: 100vh;
+        border: 0;
+        border-radius: 0;
       }
 
       .sidebar {
@@ -525,66 +570,6 @@
         color: var(--red);
       }
 
-      .questionnaire-panel {
-        min-height: 0;
-        overflow: auto;
-        padding: 22px;
-        background: var(--bg);
-      }
-
-      .questionnaire-card {
-        width: min(760px, 100%);
-        margin: 0 auto;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 22px;
-        background: var(--panel);
-      }
-
-      .questionnaire-grid {
-        display: grid;
-        gap: 16px;
-      }
-
-      .questionnaire-grid textarea {
-        min-height: 96px;
-        resize: vertical;
-      }
-
-      .rating-row {
-        display: grid;
-        gap: 8px;
-      }
-
-      .rating-scale {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 6px;
-      }
-
-      .rating-scale label {
-        min-height: 42px;
-        display: grid;
-        place-items: center;
-        border: 1px solid var(--line-strong);
-        border-radius: 6px;
-        background: #fff;
-        cursor: pointer;
-      }
-
-      .rating-scale input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      .rating-scale label:has(input:checked) {
-        border-color: var(--primary);
-        background: #eef5ff;
-        color: var(--primary-dark);
-        font-weight: 700;
-      }
-
       .modal {
         position: fixed;
         inset: 0;
@@ -660,8 +645,7 @@
         }
 
         .mode-toggle,
-        .condition-toggle,
-        .rating-scale {
+        .condition-toggle {
           grid-template-columns: 1fr;
         }
 
@@ -689,7 +673,7 @@
                     <input id="modeMain" type="radio" name="experimentMode" value="main" checked />
                     <span class="mode-card">
                       <b>本実験</b>
-                      <span>反復・事後・アンケートまで実施</span>
+                      <span>反復・事後まで実施</span>
                     </span>
                   </label>
                   <label class="mode-option">
@@ -711,29 +695,6 @@
               <div class="field">
                 <label for="participantId">参加者ID</label>
                 <input id="participantId" name="participantId" autocomplete="off" required />
-              </div>
-              <div class="field">
-                <label for="age">年齢</label>
-                <input id="age" name="age" type="number" min="1" max="120" required />
-              </div>
-              <div class="field">
-                <label for="handedness">利き手</label>
-                <select id="handedness" name="handedness" required>
-                  <option value="">選択してください</option>
-                  <option value="right">右手</option>
-                  <option value="left">左手</option>
-                  <option value="both">両手</option>
-                  <option value="other">その他</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="mouseExperience">日常的なマウス使用経験</label>
-                <select id="mouseExperience" name="mouseExperience" required>
-                  <option value="">選択してください</option>
-                  <option value="daily">ほぼ毎日</option>
-                  <option value="weekly">週に数回</option>
-                  <option value="rarely">ほとんど使わない</option>
-                </select>
               </div>
               <div class="form-actions">
                 <button class="primary-button" type="submit">実験開始</button>
@@ -796,10 +757,6 @@
                   <span><b>事後試行</b><span id="postProgressText">0 / 100</span></span>
                   <div class="progress-track"><div id="postProgressFill" class="progress-fill"></div></div>
                 </div>
-                <div id="questionnaireProgressRow" class="progress-row">
-                  <span><b>アンケート</b><span id="questionnaireProgressText">未回答</span></span>
-                  <div class="progress-track"><div id="questionnaireProgressFill" class="progress-fill"></div></div>
-                </div>
               </div>
             </section>
 
@@ -829,51 +786,6 @@
           </section>
         </div>
 
-        <section id="questionnairePanel" class="questionnaire-panel hidden" aria-labelledby="questionnaireTitle">
-          <div class="questionnaire-card">
-            <h2 id="questionnaireTitle">実験後アンケート</h2>
-            <p class="lead">各項目について，1から5で回答してください。</p>
-            <form id="questionnaireForm" class="questionnaire-grid">
-              <div class="rating-row">
-                <label>操作のしやすさ</label>
-                <div class="rating-scale">
-                  <label><input type="radio" name="ease" value="1" required /><span>1</span></label>
-                  <label><input type="radio" name="ease" value="2" /><span>2</span></label>
-                  <label><input type="radio" name="ease" value="3" /><span>3</span></label>
-                  <label><input type="radio" name="ease" value="4" /><span>4</span></label>
-                  <label><input type="radio" name="ease" value="5" /><span>5</span></label>
-                </div>
-              </div>
-              <div class="rating-row">
-                <label>疲労感</label>
-                <div class="rating-scale">
-                  <label><input type="radio" name="fatigue" value="1" required /><span>1</span></label>
-                  <label><input type="radio" name="fatigue" value="2" /><span>2</span></label>
-                  <label><input type="radio" name="fatigue" value="3" /><span>3</span></label>
-                  <label><input type="radio" name="fatigue" value="4" /><span>4</span></label>
-                  <label><input type="radio" name="fatigue" value="5" /><span>5</span></label>
-                </div>
-              </div>
-              <div class="rating-row">
-                <label>課題の難しさ</label>
-                <div class="rating-scale">
-                  <label><input type="radio" name="difficulty" value="1" required /><span>1</span></label>
-                  <label><input type="radio" name="difficulty" value="2" /><span>2</span></label>
-                  <label><input type="radio" name="difficulty" value="3" /><span>3</span></label>
-                  <label><input type="radio" name="difficulty" value="4" /><span>4</span></label>
-                  <label><input type="radio" name="difficulty" value="5" /><span>5</span></label>
-                </div>
-              </div>
-              <div class="field">
-                <label for="questionnaireComment">自由記述</label>
-                <textarea id="questionnaireComment" name="comment" placeholder="気づいたことがあれば記入してください。"></textarea>
-              </div>
-              <div class="form-actions">
-                <button class="primary-button" type="submit">アンケートを完了</button>
-              </div>
-            </form>
-          </div>
-        </section>
       </section>
     </main>
 
@@ -925,15 +837,7 @@
 
         const CSV_COLUMNS = [
           "participantId",
-          "age",
-          "handedness",
-          "mouseExperience",
           "experimentMode",
-          "questionnaireSubmittedAtIso",
-          "questionnaireEase",
-          "questionnaireFatigue",
-          "questionnaireDifficulty",
-          "questionnaireComment",
           "phase",
           "conditionId",
           "conditionName",
@@ -970,7 +874,6 @@
           post: "事後試行",
           pilot: "予備試行",
           transition: "遷移",
-          questionnaire: "アンケート",
           break: "休憩",
           paused: "休憩",
           ended: "終了",
@@ -1003,12 +906,12 @@
           activeTrial: null,
           pointer: null,
           results: [],
-          questionnaire: null,
           breakTimerId: null,
           breakRemainingSeconds: 0,
           breakEndsAtMs: 0,
           breakForced: false,
-          lastMessageTone: "info"
+          lastMessageTone: "info",
+          lastFullscreenExitAtMs: 0
         };
 
         function collectElements() {
@@ -1021,9 +924,6 @@
             "conditionToggleGroup",
             "conditionSelectionError",
             "participantId",
-            "age",
-            "handedness",
-            "mouseExperience",
             "modeChip",
             "phaseChip",
             "conditionChip",
@@ -1045,9 +945,6 @@
             "postProgressRow",
             "postProgressText",
             "postProgressFill",
-            "questionnaireProgressRow",
-            "questionnaireProgressText",
-            "questionnaireProgressFill",
             "conditionList",
             "summaryTable",
             "logList",
@@ -1055,9 +952,6 @@
             "sidebarPanel",
             "taskCanvas",
             "messageBar",
-            "questionnairePanel",
-            "questionnaireForm",
-            "questionnaireComment",
             "phaseModal",
             "phaseModalTitle",
             "phaseModalText",
@@ -1086,6 +980,11 @@
 
         function clamp(value, min, max) {
           return Math.max(min, Math.min(max, value));
+        }
+
+        function cssPixels(value) {
+          const parsed = Number.parseFloat(value);
+          return Number.isFinite(parsed) ? parsed : 0;
         }
 
         function hashString(text) {
@@ -1316,15 +1215,14 @@
         }
 
         function syncScreenVisibility() {
-          const showingQuestionnaire = state.phase === "questionnaire";
           elements.experimentScreen.classList.toggle(
             "task-only",
             shouldShowTaskOnlyLayout()
           );
-          elements.workspace.classList.toggle("hidden", showingQuestionnaire);
-          elements.questionnairePanel.classList.toggle(
-            "hidden",
-            !showingQuestionnaire
+          elements.workspace.classList.remove("hidden");
+          elements.experimentScreen.classList.toggle(
+            "fullscreen-task",
+            Boolean(currentFullscreenElement()) && shouldShowTaskOnlyLayout()
           );
         }
 
@@ -1382,12 +1280,23 @@
             const requiredWidth = Math.ceil(Math.abs(dx) + padding * 2);
             const requiredHeight = Math.ceil(Math.abs(dy) + padding * 2);
             const shell = canvas.parentElement;
-            const shellRect = shell
-              ? shell.getBoundingClientRect()
-              : { width: requiredWidth, height: requiredHeight };
+            let shellContentWidth = requiredWidth;
+            let shellContentHeight = requiredHeight;
+            if (shell) {
+              const shellRect = shell.getBoundingClientRect();
+              const shellStyle = window.getComputedStyle(shell);
+              shellContentWidth =
+                shellRect.width -
+                cssPixels(shellStyle.paddingLeft) -
+                cssPixels(shellStyle.paddingRight);
+              shellContentHeight =
+                shellRect.height -
+                cssPixels(shellStyle.paddingTop) -
+                cssPixels(shellStyle.paddingBottom);
+            }
             return {
-              width: Math.max(1, Math.ceil(shellRect.width - 2), requiredWidth),
-              height: Math.max(1, Math.ceil(shellRect.height - 2), requiredHeight)
+              width: Math.max(1, Math.floor(shellContentWidth), requiredWidth),
+              height: Math.max(1, Math.floor(shellContentHeight), requiredHeight)
             };
           },
 
@@ -1558,9 +1467,6 @@
             if (state.activeTrial) {
               this.drawTrajectory(ctx, state.activeTrial);
             }
-            if (state.pointer) {
-              this.drawPointer(ctx, state.pointer);
-            }
             this.drawConditionLabel(ctx, condition, state.currentPath);
           },
 
@@ -1722,7 +1628,7 @@
             ctx.save();
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = 1.5;
             for (let i = 1; i < points.length; i += 1) {
               const previous = points[i - 1];
               const current = points[i];
@@ -1732,18 +1638,6 @@
               ctx.lineTo(current.x, current.y);
               ctx.stroke();
             }
-            ctx.restore();
-          },
-
-          drawPointer(ctx, pointer) {
-            ctx.save();
-            ctx.fillStyle = pointer.outside ? "#d83b32" : "#1f6feb";
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(pointer.x, pointer.y, 5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
             ctx.restore();
           },
 
@@ -1794,8 +1688,7 @@
             const lines = [CSV_COLUMNS.join(",")];
             results.forEach((row) => {
               const exportRow = {
-                ...row,
-                ...questionnaireCsvFields()
+                ...row
               };
               lines.push(
                 CSV_COLUMNS.map((column) => this.csvEscape(exportRow[column])).join(",")
@@ -1831,7 +1724,6 @@
                   amplitude: condition.amplitude,
                   steeringId: condition.steeringId
                 })),
-                questionnaire: state.questionnaire,
                 results: state.results
               },
               null,
@@ -1888,17 +1780,6 @@
             pad(date.getMinutes()),
             pad(date.getSeconds())
           ].join("");
-        }
-
-        function questionnaireCsvFields() {
-          const questionnaire = state.questionnaire || {};
-          return {
-            questionnaireSubmittedAtIso: questionnaire.submittedAtIso || "",
-            questionnaireEase: questionnaire.ease || "",
-            questionnaireFatigue: questionnaire.fatigue || "",
-            questionnaireDifficulty: questionnaire.difficulty || "",
-            questionnaireComment: questionnaire.comment || ""
-          };
         }
 
         function downloadCsvIfAvailable() {
@@ -2006,10 +1887,17 @@
           }
         }
 
+        function handleFullscreenChange() {
+          if (!currentFullscreenElement()) {
+            state.lastFullscreenExitAtMs = performance.now();
+          }
+          updateUi();
+          Renderer.draw();
+        }
+
         function resetFormsForNextSession() {
           elements.participantForm.reset();
           renderConditionChoices();
-          elements.questionnaireForm.reset();
           elements.conditionSelectionError.classList.add("hidden");
         }
 
@@ -2035,8 +1923,8 @@
           state.activeTrial = null;
           state.pointer = null;
           state.results = [];
-          state.questionnaire = null;
           state.lastMessageTone = "info";
+          state.lastFullscreenExitAtMs = 0;
         }
 
         function returnToStartScreen() {
@@ -2070,11 +1958,7 @@
           elements.conditionChip.textContent = condition
             ? `${condition.id} ${condition.name}`
             : "-";
-          if (state.phase === "questionnaire") {
-            elements.trialChip.textContent = state.questionnaire
-              ? "回答済み"
-              : "回答中";
-          } else if (total > 0) {
+          if (total > 0) {
             elements.trialChip.textContent = `${completed} / ${total}`;
           } else {
             elements.trialChip.textContent = `${state.countedTotal} 記録`;
@@ -2090,13 +1974,9 @@
           elements.pilotProgressRow.classList.toggle("hidden", !isPilot);
           elements.practiceProgressRow.classList.toggle("hidden", isPilot);
           elements.postProgressRow.classList.toggle("hidden", isPilot);
-          elements.questionnaireProgressRow.classList.toggle("hidden", isPilot);
           elements.pilotProgressText.textContent = `${state.pilotCompleted} / ${pilotTotal}`;
           elements.practiceProgressText.textContent = `${state.practiceCompleted} / ${practiceTotal}`;
           elements.postProgressText.textContent = `${state.postCompleted} / ${postTotal}`;
-          elements.questionnaireProgressText.textContent = state.questionnaire
-            ? "回答済み"
-            : "未回答";
           elements.pilotProgressFill.style.width = `${clamp(
             (state.pilotCompleted / Math.max(1, pilotTotal)) * 100,
             0,
@@ -2112,9 +1992,6 @@
             0,
             100
           )}%`;
-          elements.questionnaireProgressFill.style.width = state.questionnaire
-            ? "100%"
-            : "0%";
 
           elements.pauseButton.disabled = !isTaskPhase(state.phase);
           elements.resumeButton.disabled =
@@ -2278,9 +2155,6 @@
           const mode = modeConfig();
           state.participant = {
             participantId,
-            age: Number(elements.age.value),
-            handedness: elements.handedness.value,
-            mouseExperience: elements.mouseExperience.value,
             experimentMode: state.mode
           };
           state.selectedConditions = selectedConditions;
@@ -2298,7 +2172,6 @@
           state.countedTotal = 0;
           state.attemptNumber = 0;
           state.results = [];
-          state.questionnaire = null;
           state.phase = state.mode === "pilot" ? "pilot" : "practice";
           state.previousPhase = null;
           state.pendingPhase = null;
@@ -2527,9 +2400,6 @@
           state.attemptNumber = attemptNumber;
           return {
             participantId: participant.participantId,
-            age: participant.age,
-            handedness: participant.handedness,
-            mouseExperience: participant.mouseExperience,
             experimentMode: participant.experimentMode,
             phase: trial.phase,
             conditionId: condition.id,
@@ -2669,14 +2539,7 @@
           }
 
           if (phase === "post") {
-            startPhaseTransition({
-              previousPhase: "post",
-              nextPhase: modeConfig().hasQuestionnaire ? "questionnaire" : "ended",
-              title: "事後試行が終了しました",
-              text:
-                "ステアリング課題は終了です。続いてアンケートに回答してください。",
-              buttonText: "アンケートへ進む"
-            });
+            finishExperiment();
           }
         }
 
@@ -2713,21 +2576,7 @@
             return;
           }
 
-          if (nextPhase === "questionnaire") {
-            showQuestionnaire();
-            return;
-          }
-
           finishExperiment();
-        }
-
-        function showQuestionnaire() {
-          state.phase = "questionnaire";
-          state.activeTrial = null;
-          state.pointer = null;
-          state.currentPath = null;
-          setMessage("アンケートに回答してください。", "info");
-          updateUi();
         }
 
         function clearBreakTimer() {
@@ -2846,23 +2695,6 @@
           returnToStartScreen();
         }
 
-        function submitQuestionnaire(event) {
-          event.preventDefault();
-          const form = elements.questionnaireForm;
-          if (!form.reportValidity()) {
-            return;
-          }
-          const formData = new FormData(form);
-          state.questionnaire = {
-            submittedAtIso: nowIso(),
-            ease: Number(formData.get("ease")),
-            fatigue: Number(formData.get("fatigue")),
-            difficulty: Number(formData.get("difficulty")),
-            comment: String(formData.get("comment") || "").trim()
-          };
-          finishExperiment();
-        }
-
         function saveCsv() {
           if (!downloadCsvIfAvailable()) {
             setMessage("保存できる試行データがまだありません。", "warn");
@@ -2914,6 +2746,14 @@
 
         function handleKeyDown(event) {
           if (event.key === "Escape") {
+            if (currentFullscreenElement()) {
+              event.preventDefault();
+              exitAppFullscreen();
+              return;
+            }
+            if (performance.now() - state.lastFullscreenExitAtMs < 500) {
+              return;
+            }
             if (state.activeTrial) {
               event.preventDefault();
               retryTrial("manual_abort", state.pointer);
@@ -2949,7 +2789,6 @@
               elements.conditionSelectionError.classList.add("hidden");
             }
           });
-          elements.questionnaireForm.addEventListener("submit", submitQuestionnaire);
           elements.taskCanvas.addEventListener("pointerdown", handlePointerDown);
           elements.taskCanvas.addEventListener("pointermove", handlePointerMove);
           elements.taskCanvas.addEventListener("pointerup", handlePointerUp);
@@ -2971,8 +2810,8 @@
           elements.modalSaveJsonButton.addEventListener("click", saveJson);
           window.addEventListener("keydown", handleKeyDown);
           window.addEventListener("resize", handleResize);
-          document.addEventListener("fullscreenchange", updateFullscreenButton);
-          document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+          document.addEventListener("fullscreenchange", handleFullscreenChange);
+          document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
           window.addEventListener("blur", () => {
             if (state.activeTrial) {
               retryTrial("window_blur", state.pointer);

@@ -62,11 +62,10 @@
       main: Object.freeze({
         id: "main",
         name: "本実験",
-        description: "反復試行，事後試行，アンケートまで実施する",
+        description: "反復試行，事後試行まで実施する",
         practiceTrials: 300,
         postTrials: 100,
         hasPostPhase: true,
-        hasQuestionnaire: true,
         forcedBreak: true
       }),
       pilot: Object.freeze({
@@ -75,7 +74,6 @@
         description: "選択した反復条件を300試行ずつ実施する",
         trials: 300,
         hasPostPhase: false,
-        hasQuestionnaire: false,
         forcedBreak: false,
         manualPause: true
       })
@@ -93,7 +91,7 @@
     }),
 
     display: Object.freeze({
-      diagonalAngleDeg: 32,
+      diagonalAngleDeg: 30,
       marginPx: 88,
       minCorridorWidthPx: 8,
       exactPixels: true,
