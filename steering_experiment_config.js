@@ -56,7 +56,7 @@
     pilotTrials: 400,
     breakInterval: 100,
     manualPauseInterval: 100,
-    forcedBreakSeconds: 60,
+    breakTimerMode: "count-up",
 
     experimentModes: Object.freeze({
       main: Object.freeze({
@@ -66,7 +66,7 @@
         practiceTrials: 400,
         postTrials: 100,
         hasPostPhase: true,
-        forcedBreak: true
+        scheduledBreak: true
       }),
       pilot: Object.freeze({
         id: "pilot",
@@ -74,7 +74,7 @@
         description: "選択した反復条件を400試行ずつ実施する",
         trials: 400,
         hasPostPhase: false,
-        forcedBreak: false,
+        scheduledBreak: false,
         manualPause: true
       })
     }),

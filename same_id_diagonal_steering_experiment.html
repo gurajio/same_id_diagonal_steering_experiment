@@ -680,7 +680,7 @@
                     <input id="modePilot" type="radio" name="experimentMode" value="pilot" />
                     <span class="mode-card">
                       <b>予備実験</b>
-                      <span>選択条件を300試行ずつ実施</span>
+                      <span>選択条件を400試行ずつ実施</span>
                     </span>
                   </label>
                 </div>
@@ -713,8 +713,8 @@
               <li>通路からはみ出しても試行は継続し，逸脱情報が記録されます。</li>
               <li>途中でポインタを離した場合は，同じ試行をやり直します。</li>
               <li>ゴール直前でポインタを離した場合は，分析対象エラーとして記録されます。</li>
-              <li>本実験では100試行ごとに1分間の強制休憩があります。</li>
-              <li>予備実験では選択した条件を300試行ずつ行い，100試行ごとに自分のタイミングで再開します。</li>
+              <li>本実験では100試行ごとに休憩画面が表示され，準備ができたらいつでも再開できます。</li>
+              <li>予備実験では選択した条件を400試行ずつ行い，100試行ごとに自分のタイミングで再開します。</li>
             </ol>
           </section>
         </div>
@@ -911,9 +911,9 @@
           pointer: null,
           results: [],
           breakTimerId: null,
-          breakRemainingSeconds: 0,
-          breakEndsAtMs: 0,
-          breakForced: false,
+          breakElapsedSeconds: 0,
+          breakStartedAtMs: 0,
+          breakScheduled: false,
           lastMessageTone: "info",
           lastFullscreenExitAtMs: 0
         };
@@ -1234,9 +1234,9 @@
           }
         }
 
-        function shouldUseForcedBreak(phase) {
+        function shouldUseScheduledBreak(phase) {
           const mode = modeConfig();
-          return Boolean(mode.forcedBreak && phase !== "pilot");
+          return Boolean(mode.scheduledBreak && phase !== "pilot");
         }
 
         function shouldShowTaskOnlyLayout() {
@@ -1835,7 +1835,7 @@
                 postTrials: phaseTrialTotal("post"),
                 pilotTrials: phaseTrialTotal("pilot"),
                 breakInterval: Config.breakInterval,
-                forcedBreakSeconds: Config.forcedBreakSeconds,
+                breakTimerMode: Config.breakTimerMode || "count-up",
                 conditions: Config.conditions,
                 postConditions: Config.postConditions,
                 postSequence: state.postSequence.map((condition, index) => ({
@@ -1930,6 +1930,18 @@
           return target.requestFullscreen || target.webkitRequestFullscreen || null;
         }
 
+        function fullscreenTargetElement() {
+          const candidates = [
+            document.documentElement,
+            elements.experimentScreen,
+            document.body
+          ].filter(Boolean);
+          return (
+            candidates.find((target) => fullscreenRequestMethod(target)) ||
+            candidates[0]
+          );
+        }
+
         function fullscreenExitMethod() {
           return document.exitFullscreen || document.webkitExitFullscreen || null;
         }
@@ -1938,7 +1950,7 @@
           return Boolean(
             document.fullscreenEnabled ||
               document.webkitFullscreenEnabled ||
-              fullscreenRequestMethod(elements.experimentScreen || document.documentElement)
+              fullscreenRequestMethod(fullscreenTargetElement())
           );
         }
 
@@ -1958,7 +1970,7 @@
             updateFullscreenButton();
             return;
           }
-          const target = elements.experimentScreen || document.documentElement;
+          const target = fullscreenTargetElement();
           const request = fullscreenRequestMethod(target);
           if (!request) {
             if (!silent) {
@@ -2140,9 +2152,7 @@
           )}%`;
 
           elements.pauseButton.disabled = !isTaskPhase(state.phase);
-          elements.resumeButton.disabled =
-            !["break", "paused"].includes(state.phase) ||
-            (state.breakForced && state.breakRemainingSeconds > 0);
+          elements.resumeButton.disabled = !["break", "paused"].includes(state.phase);
           elements.abortTrialButton.disabled = !state.activeTrial;
           elements.saveCsvButton.disabled = state.results.length === 0;
           elements.saveJsonButton.disabled = state.results.length === 0;
@@ -2624,7 +2634,7 @@
           }
 
           if (
-            shouldUseForcedBreak(phase) &&
+            shouldUseScheduledBreak(phase) &&
             conditionCompleted % Config.breakInterval === 0
           ) {
             startBreak(phase, true);
@@ -2666,22 +2676,10 @@
             return;
           }
 
-          if (phase === "pilot") {
-            startBreak(
-              phase,
-              false,
-              `${previousCondition.id} ${previousCondition.name} の300試行が終了しました。次は ${nextCondition.id} ${nextCondition.name} です。準備ができたら再開してください。`
-            );
-            return;
-          }
-
-          startPhaseTransition({
-            previousPhase: phase,
-            nextPhase: phase,
-            title: `${previousCondition.id} ${previousCondition.name} が終了しました`,
-            text: `次は ${nextCondition.id} ${nextCondition.name} の反復試行です。準備ができたら次へ進んでください。`,
-            buttonText: "次の条件へ進む"
-          });
+          const phaseLabel = phase === "pilot" ? "予備試行" : "反復試行";
+          prepareTrial(
+            `${previousCondition.id} ${previousCondition.name} が終了しました。次は ${nextCondition.id} ${nextCondition.name} の${phaseLabel}です。START領域内で押してください。`
+          );
         }
 
         function finishTaskPhase(phase) {
@@ -2695,14 +2693,12 @@
               finishExperiment();
               return;
             }
-            startPhaseTransition({
-              previousPhase: "practice",
-              nextPhase: "post",
-              title: "反復試行が終了しました",
-              text:
-                "ここから事後試行に進みます。準備ができたら次へ進んでください。",
-              buttonText: "事後試行へ進む"
-            });
+            state.phase = "post";
+            state.previousPhase = null;
+            state.pendingPhase = null;
+            prepareTrial(
+              "反復試行が終了しました。事後試行を開始します。START領域内で押してください。"
+            );
             return;
           }
 
@@ -2752,9 +2748,9 @@
             window.clearInterval(state.breakTimerId);
           }
           state.breakTimerId = null;
-          state.breakRemainingSeconds = 0;
-          state.breakEndsAtMs = 0;
-          state.breakForced = false;
+          state.breakElapsedSeconds = 0;
+          state.breakStartedAtMs = 0;
+          state.breakScheduled = false;
           if (elements.breakTimerText) {
             elements.breakTimerText.textContent = "";
           }
@@ -2764,48 +2760,39 @@
           }
         }
 
-        function updateBreakTimer() {
-          if (!state.breakForced) {
-            elements.breakTimerText.textContent = "";
-            elements.modalResumeButton.disabled = false;
-            elements.modalResumeButton.textContent = "再開";
-            return;
-          }
-          state.breakRemainingSeconds = Math.max(
-            0,
-            Math.ceil((state.breakEndsAtMs - Date.now()) / 1000)
-          );
-          if (state.breakRemainingSeconds > 0) {
-            elements.breakTimerText.textContent = `再開まで ${state.breakRemainingSeconds} 秒`;
-            elements.modalResumeButton.disabled = true;
-            elements.modalResumeButton.textContent = "休憩中";
-          } else {
-            elements.breakTimerText.textContent = "1分経過しました。再開できます。";
-            elements.modalResumeButton.disabled = false;
-            elements.modalResumeButton.textContent = "再開";
-            if (state.breakTimerId) {
-              window.clearInterval(state.breakTimerId);
-              state.breakTimerId = null;
-            }
-          }
-          updateUi();
+        function formatBreakElapsed(totalSeconds) {
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+          return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
         }
 
-        function startBreak(previousPhase, forced, customText) {
+        function updateBreakTimer() {
+          if (!state.breakStartedAtMs) {
+            return;
+          }
+          state.breakElapsedSeconds = Math.max(
+            0,
+            Math.floor((Date.now() - state.breakStartedAtMs) / 1000)
+          );
+          elements.breakTimerText.textContent = `休憩時間 ${formatBreakElapsed(state.breakElapsedSeconds)}`;
+          elements.modalResumeButton.disabled = false;
+          elements.modalResumeButton.textContent = "再開";
+        }
+
+        function startBreak(previousPhase, scheduled, customText) {
           clearBreakTimer();
           state.previousPhase = previousPhase;
           state.phase = "break";
-          state.breakForced = Boolean(forced);
-          if (state.breakForced) {
-            state.breakEndsAtMs =
-              Date.now() + Math.max(1, Config.forcedBreakSeconds) * 1000;
-            elements.breakText.textContent = `${Config.breakInterval}試行が終了しました。1分間休憩してください。`;
-            updateBreakTimer();
-            state.breakTimerId = window.setInterval(updateBreakTimer, 250);
+          state.breakScheduled = Boolean(scheduled);
+          state.breakStartedAtMs = Date.now();
+          if (state.breakScheduled) {
+            elements.breakText.textContent = `${Config.breakInterval}試行が終了しました。休憩時間をカウントしています。準備ができたら再開してください。`;
           } else {
             elements.breakText.textContent =
               customText || "任意休憩中です。準備ができたら再開してください。";
           }
+          updateBreakTimer();
+          state.breakTimerId = window.setInterval(updateBreakTimer, 1000);
           elements.breakModal.classList.remove("hidden");
           setMessage("休憩中です。", "info");
           updateUi();
@@ -2819,9 +2806,14 @@
           if (state.activeTrial) {
             retryTrial("manual_pause", state.pointer);
           }
+          clearBreakTimer();
           state.previousPhase = activePhase();
           state.phase = "paused";
+          state.breakScheduled = false;
+          state.breakStartedAtMs = Date.now();
           elements.breakText.textContent = "任意休憩中です。準備ができたら再開してください。";
+          updateBreakTimer();
+          state.breakTimerId = window.setInterval(updateBreakTimer, 1000);
           elements.breakModal.classList.remove("hidden");
           setMessage("任意休憩中です。", "info");
           updateUi();
@@ -2830,11 +2822,6 @@
 
         function resumeAfterBreak() {
           if (!["break", "paused"].includes(state.phase)) {
-            return;
-          }
-          if (state.breakForced && state.breakRemainingSeconds > 0) {
-            setMessage("1分間の休憩が終わるまで再開できません。", "warn");
-            updateBreakTimer();
             return;
           }
           const nextPhase = state.previousPhase || "practice";

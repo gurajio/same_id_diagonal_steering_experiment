@@ -23,7 +23,7 @@ ax.plot(N, T, marker="o", markersize=2, linewidth=1.5)
 
 # 軸ラベルのみ
 ax.set_xlabel("Trial number")
-ax.set_ylabel("Task completion time")
+ax.set_ylabel("Task completion time(seconds)")
 
 # 余計な要素を消す
 ax.grid(False)
