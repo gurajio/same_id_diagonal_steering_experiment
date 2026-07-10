@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  // 各条件の trials が，反復試行・予備試行で提示する回数です。
   const practiceConditions = [
     {
       id: "C1",
@@ -45,16 +46,20 @@
   }
 
   const conditions = practiceConditions.map(withSteeringId);
+  // 事後試行で各条件を提示する回数です。
   const postTrialsPerCondition = 25;
+  const postTrialTotal = conditions.length * postTrialsPerCondition;
 
   window.SteeringExperimentConfig = Object.freeze({
     appName: "同一ID斜め直線ステアリング課題実験システム",
     appVersion: "1.0.0",
 
     practiceTrials: 400,
-    postTrials: 100,
+    postTrials: postTrialTotal,
     pilotTrials: 400,
+    // 本実験で休憩画面を表示する間隔。0以下なら休憩なし。
     breakInterval: 100,
+    // 予備実験で任意停止画面を表示する間隔。0以下なら停止なし。
     manualPauseInterval: 100,
     breakTimerMode: "count-up",
 
@@ -64,14 +69,14 @@
         name: "本実験",
         description: "反復試行から事後試行まで実施する",
         practiceTrials: 400,
-        postTrials: 100,
+        postTrials: postTrialTotal,
         hasPostPhase: true,
         scheduledBreak: true
       }),
       pilot: Object.freeze({
         id: "pilot",
         name: "予備実験",
-        description: "選択した反復条件を400試行ずつ実施する",
+        description: "選択した反復条件を設定試行数ずつ実施する",
         trials: 400,
         hasPostPhase: false,
         scheduledBreak: false,
@@ -114,8 +119,7 @@
 
     postConditionOrder: Object.freeze({
       method: "balanced-seeded-shuffle",
-      description:
-        "4条件を25試行ずつ用意し，参加者IDをシードにした固定順で提示する"
+      description: `${conditions.length}条件を${postTrialsPerCondition}試行ずつ用意し，参加者IDをシードにした固定順で提示する`
     }),
 
     export: Object.freeze({

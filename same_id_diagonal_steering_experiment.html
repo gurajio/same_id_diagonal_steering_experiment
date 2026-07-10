@@ -680,7 +680,7 @@
                     <input id="modePilot" type="radio" name="experimentMode" value="pilot" />
                     <span class="mode-card">
                       <b>予備実験</b>
-                      <span>選択条件を400試行ずつ実施</span>
+                      <span>選択条件を設定試行数ずつ実施</span>
                     </span>
                   </label>
                 </div>
@@ -713,8 +713,8 @@
               <li>通路からはみ出しても試行は継続し，逸脱情報が記録されます。</li>
               <li>途中でポインタを離した場合は，同じ試行をやり直します。</li>
               <li>ゴール直前でポインタを離した場合は，分析対象エラーとして記録されます。</li>
-              <li>本実験では100試行ごとに休憩画面が表示され，準備ができたらいつでも再開できます。</li>
-              <li>予備実験では選択した条件を400試行ずつ行い，100試行ごとに自分のタイミングで再開します。</li>
+              <li>本実験では設定した間隔で休憩画面が表示され，準備ができたらいつでも再開できます。</li>
+              <li>予備実験では選択した条件を設定試行数ずつ行い，設定した間隔で自分のタイミングで再開します。</li>
             </ol>
           </section>
         </div>
@@ -1080,6 +1080,22 @@
         }
 
         function renderConditionChoices() {
+          const postConditionCount = Config.postConditions.length;
+          const postTrialTotal = Config.postConditions.reduce(
+            (total, condition) => total + configuredTrialCount(condition, 0),
+            0
+          );
+          const postTrialLabels = Array.from(
+            new Set(
+              Config.postConditions.map((condition) =>
+                configuredTrialCount(condition, 0)
+              )
+            )
+          );
+          const postTrialText =
+            postTrialLabels.length === 1
+              ? `${postConditionCount}条件を${postTrialLabels[0]}試行ずつ`
+              : `${postConditionCount}条件で合計${postTrialTotal}試行`;
           elements.conditionToggleGroup.innerHTML = Config.conditions
             .map(
               (condition) => `
@@ -1108,7 +1124,7 @@
                 />
                 <span class="condition-card">
                   <b>事後テスト</b>
-                  <span>4条件を25試行ずつ / 合計100試行 / ランダム順</span>
+                  <span>${escapeHtml(postTrialText)} / 合計${escapeHtml(postTrialTotal)}試行 / ランダム順</span>
                 </span>
               </label>
             `;
@@ -1185,17 +1201,43 @@
           return state.phase;
         }
 
+        function configuredTrialCount(condition, fallback) {
+          const value = Number(condition?.trials);
+          if (Number.isFinite(value) && value > 0) {
+            return Math.floor(value);
+          }
+          return Math.max(0, Math.floor(Number(fallback) || 0));
+        }
+
+        function queuedTrialTotal(phase) {
+          const mode = modeConfig();
+          const fallback =
+            phase === "pilot"
+              ? mode.trials || Config.pilotTrials
+              : mode.practiceTrials || Config.practiceTrials;
+          return conditionQueue().reduce(
+            (total, condition) => total + configuredTrialCount(condition, fallback),
+            0
+          );
+        }
+
+        function breakIntervalForPhase(phase) {
+          const raw =
+            phase === "pilot" ? Config.manualPauseInterval : Config.breakInterval;
+          const value = Math.floor(Number(raw) || 0);
+          return value > 0 ? value : 0;
+        }
+
         function phaseTrialTotal(phase) {
           const mode = modeConfig();
-          const selectedCount = conditionQueue().length;
           if (phase === "pilot") {
-            return selectedCount * (mode.trials || Config.pilotTrials);
+            return queuedTrialTotal("pilot");
           }
           if (phase === "post") {
             return state.postSequence.length || mode.postTrials || Config.postTrials;
           }
           if (phase === "practice") {
-            return selectedCount * (mode.practiceTrials || Config.practiceTrials);
+            return queuedTrialTotal("practice");
           }
           return 0;
         }
@@ -1203,10 +1245,16 @@
         function phaseConditionTotal(phase) {
           const mode = modeConfig();
           if (phase === "pilot") {
-            return mode.trials || Config.pilotTrials;
+            return configuredTrialCount(
+              currentCondition(),
+              mode.trials || Config.pilotTrials
+            );
           }
           if (phase === "practice") {
-            return mode.practiceTrials || Config.practiceTrials;
+            return configuredTrialCount(
+              currentCondition(),
+              mode.practiceTrials || Config.practiceTrials
+            );
           }
           return phaseTrialTotal(phase);
         }
@@ -1270,7 +1318,7 @@
         function buildPostSequence(participantId) {
           const pool = [];
           Config.postConditions.forEach((condition) => {
-            const trials = condition.trials || 0;
+            const trials = configuredTrialCount(condition, 0);
             for (let i = 0; i < trials; i += 1) {
               pool.push({
                 ...condition,
@@ -1835,6 +1883,7 @@
                 postTrials: phaseTrialTotal("post"),
                 pilotTrials: phaseTrialTotal("pilot"),
                 breakInterval: Config.breakInterval,
+                manualPauseInterval: Config.manualPauseInterval,
                 breakTimerMode: Config.breakTimerMode || "count-up",
                 conditions: Config.conditions,
                 postConditions: Config.postConditions,
@@ -2635,7 +2684,8 @@
 
           if (
             shouldUseScheduledBreak(phase) &&
-            conditionCompleted % Config.breakInterval === 0
+            breakIntervalForPhase(phase) > 0 &&
+            conditionCompleted % breakIntervalForPhase(phase) === 0
           ) {
             startBreak(phase, true);
             return;
@@ -2644,12 +2694,13 @@
           if (
             phase === "pilot" &&
             modeConfig().manualPause &&
-            conditionCompleted % Config.manualPauseInterval === 0
+            breakIntervalForPhase(phase) > 0 &&
+            conditionCompleted % breakIntervalForPhase(phase) === 0
           ) {
             startBreak(
               phase,
               false,
-              `${Config.manualPauseInterval}試行が終了しました。準備ができたら自分のタイミングで再開してください。`
+              `${breakIntervalForPhase(phase)}試行が終了しました。準備ができたら自分のタイミングで再開してください。`
             );
             return;
           }
@@ -2786,7 +2837,7 @@
           state.breakScheduled = Boolean(scheduled);
           state.breakStartedAtMs = Date.now();
           if (state.breakScheduled) {
-            elements.breakText.textContent = `${Config.breakInterval}試行が終了しました。休憩時間をカウントしています。準備ができたら再開してください。`;
+            elements.breakText.textContent = `${breakIntervalForPhase(previousPhase)}試行が終了しました。休憩時間をカウントしています。準備ができたら再開してください。`;
           } else {
             elements.breakText.textContent =
               customText || "任意休憩中です。準備ができたら再開してください。";
