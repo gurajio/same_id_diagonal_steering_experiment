@@ -1591,24 +1591,8 @@
           },
 
           drawBackground(ctx, metrics) {
-            ctx.fillStyle = "#ffffff";
+            ctx.fillStyle = "#d8dce3";
             ctx.fillRect(0, 0, metrics.width, metrics.height);
-            ctx.save();
-            ctx.strokeStyle = "#edf1f7";
-            ctx.lineWidth = 1;
-            for (let x = 24; x < metrics.width; x += 24) {
-              ctx.beginPath();
-              ctx.moveTo(x, 0);
-              ctx.lineTo(x, metrics.height);
-              ctx.stroke();
-            }
-            for (let y = 24; y < metrics.height; y += 24) {
-              ctx.beginPath();
-              ctx.moveTo(0, y);
-              ctx.lineTo(metrics.width, y);
-              ctx.stroke();
-            }
-            ctx.restore();
           },
 
           drawIdle(ctx, metrics) {
@@ -1744,15 +1728,6 @@
               endStroke
             );
 
-            ctx.strokeStyle = "#8fb4f2";
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([8, 8]);
-            ctx.beginPath();
-            const routeStart = this.pointAlongPath(path, visibleRange.start);
-            const routeEnd = this.pointAlongPath(path, visibleRange.end);
-            ctx.moveTo(routeStart.x, routeStart.y);
-            ctx.lineTo(routeEnd.x, routeEnd.y);
-            ctx.stroke();
             ctx.restore();
           },
 

@@ -1,36 +1,63 @@
-===== MixedLM random slope failed =====
+===== MixedLM: logMT ~ logN * condition =====
 
-Singular matrix
+                    Mixed Linear Model Regression Results
+==============================================================================
+Model:                    MixedLM         Dependent Variable:         logMT   
+No. Observations:         944             Method:                     REML    
+No. Groups:               1               Scale:                      0.0249  
+Min. group size:          944             Log-Likelihood:             377.4728
+Max. group size:          944             Converged:                  Yes     
+Mean group size:          944.0                                               
+------------------------------------------------------------------------------
+                                  Coef.   Std.Err.    z    P>|z| [0.025 0.975]
+------------------------------------------------------------------------------
+Intercept                         -0.584      0.166 -3.522 0.000 -0.909 -0.259
+C(condition)[T.width_narrow]       1.204      0.071 16.882 0.000  1.064  1.344
+C(condition)[T.length_long]        1.074      0.071 15.045 0.000  0.934  1.214
+C(condition)[T.length_short]       0.328      0.071  4.588 0.000  0.188  0.468
+logN                               0.041      0.158  0.259 0.796 -0.269  0.351
+logN:C(condition)[T.width_narrow] -0.103      0.015 -6.924 0.000 -0.132 -0.074
+logN:C(condition)[T.length_long]  -0.073      0.015 -4.893 0.000 -0.102 -0.044
+logN:C(condition)[T.length_short] -0.077      0.015 -5.242 0.000 -0.106 -0.048
+Group Var                          0.025 967681.626                           
+Group x logN Cov                   0.000   4918.667                           
+logN Var                           0.025 944612.863                           
+==============================================================================
 
-MixedLM failed completely:
-
-Singular matrix
 
 
 ===== GEE Binomial: error ~ logN * condition =====
 
                                GEE Regression Results                              
 ===================================================================================
-Dep. Variable:                   error_int   No. Observations:                  325
+Dep. Variable:                   error_int   No. Observations:                 1200
 Model:                                 GEE   No. clusters:                        1
-Method:                        Generalized   Min. cluster size:                 325
-                      Estimating Equations   Max. cluster size:                 325
-Family:                           Binomial   Mean cluster size:               325.0
+Method:                        Generalized   Min. cluster size:                1200
+                      Estimating Equations   Max. cluster size:                1200
+Family:                           Binomial   Mean cluster size:              1200.0
 Dependence structure:         Independence   Num. iterations:                     2
-Date:                     Mon, 22 Jun 2026   Scale:                           1.000
-Covariance type:                    robust   Time:                         17:05:32
+Date:                     Mon, 13 Jul 2026   Scale:                           1.000
+Covariance type:                    robust   Time:                         09:51:04
 =====================================================================================================
                                         coef    std err          z      P>|z|      [0.025      0.975]
 -----------------------------------------------------------------------------------------------------
-Intercept                            -1.1602   1.57e-15   -7.4e+14      0.000      -1.160      -1.160
-C(condition)[T.width_narrow]               0          0        nan        nan           0           0
-C(condition)[T.length_long]                0          0        nan        nan           0           0
-C(condition)[T.length_short]               0          0        nan        nan           0           0
-logN                                  0.3249   3.04e-16   1.07e+15      0.000       0.325       0.325
-logN:C(condition)[T.width_narrow]          0          0        nan        nan           0           0
-logN:C(condition)[T.length_long]           0          0        nan        nan           0           0
-logN:C(condition)[T.length_short]          0          0        nan        nan           0           0
+Intercept                             1.2936   3.35e-15   3.87e+14      0.000       1.294       1.294
+C(condition)[T.width_narrow]          0.8933   1.53e-15   5.83e+14      0.000       0.893       0.893
+C(condition)[T.length_long]          -0.6461   3.97e-15  -1.63e+14      0.000      -0.646      -0.646
+C(condition)[T.length_short]         -0.2663   3.33e-15  -7.99e+13      0.000      -0.266      -0.266
+logN                                 -0.1933    6.7e-16  -2.89e+14      0.000      -0.193      -0.193
+logN:C(condition)[T.width_narrow]     0.1036   2.95e-16   3.51e+14      0.000       0.104       0.104
+logN:C(condition)[T.length_long]      0.3949   8.09e-16   4.88e+14      0.000       0.395       0.395
+logN:C(condition)[T.length_short]    -0.0643    6.9e-16  -9.32e+13      0.000      -0.064      -0.064
 ==============================================================================
-Skew:                         -0.3727   Kurtosis:                      -1.7506
-Centered skew:                -0.3727   Centered kurtosis:             -1.7506
+Skew:                         -0.6177   Kurtosis:                      -0.9275
+Centered skew:                -0.6177   Centered kurtosis:             -0.9275
 ==============================================================================
+
+Same ID model failed: ID20
+
+Singular matrix
+
+Same ID model failed: ID50
+
+Singular matrix

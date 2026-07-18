@@ -349,7 +349,9 @@ def extract_core_trajectory(
     return None, None, None
 
 
-def calc_tpe_from_trial_flexible(row: pd.Series, diagonal_angle_deg: float) -> pd.Series:
+def calc_tpe_from_trial_flexible(
+    row: pd.Series, diagonal_angle_deg: float, prefer_core: bool = True
+) -> pd.Series:
     traj = parse_trajectory(row.get("trajectory"))
 
     if len(traj) < 2:
@@ -369,7 +371,7 @@ def calc_tpe_from_trial_flexible(row: pd.Series, diagonal_angle_deg: float) -> p
     core_mt_ms = to_float(row.get("coreMtMs"))
     has_core = np.isfinite(core_entry_ms) and np.isfinite(core_exit_ms) and np.isfinite(core_mt_ms)
 
-    if has_core:
+    if prefer_core and has_core:
         xs, ys, _ = extract_core_trajectory(traj, core_entry_ms, core_exit_ms)
         mt_ms = core_mt_ms
         method = "core"
@@ -590,6 +592,157 @@ def make_mt_outputs(
     return mean_df, participant_block_mean_df, overall_block_mean_df
 
 
+def make_full_mt_outputs(
+    practice_df: pd.DataFrame, block_size: int, figures_dir: Path, tables_dir: Path
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    full_mt_df = practice_df.copy()
+    full_mt_df["full_mt"] = pd.to_numeric(full_mt_df["mtMs"], errors="coerce")
+    full_mt_df = full_mt_df[full_mt_df["full_mt"].notna()].copy()
+    if full_mt_df.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    full_mt_df["block25"] = ((full_mt_df["trialInCondition"] - 1) // block_size) + 1
+    full_mt_block = (
+        full_mt_df.groupby(["participant", "conditionId", "block25"])
+        .agg(
+            trial_number=("trialInCondition", "max"),
+            n=("full_mt", "size"),
+            mean_full_mt=("full_mt", "mean"),
+            sd_full_mt=("full_mt", "std"),
+        )
+        .reset_index()
+    )
+    mean_full_mt_block = (
+        full_mt_block.groupby("block25")
+        .agg(
+            trial_number=("trial_number", "max"),
+            mean_full_mt=("mean_full_mt", "mean"),
+            sd_full_mt=("mean_full_mt", "std"),
+            n=("participant", "count"),
+        )
+        .reset_index()
+    )
+    save_df(full_mt_block, tables_dir / "full_mt_by_block.csv")
+    save_df(mean_full_mt_block, tables_dir / "mean_full_mt_by_block.csv")
+
+    plt.figure(figsize=(9, 5))
+    for participant_id, group in full_mt_block.groupby("participant"):
+        condition = group["conditionId"].iloc[0]
+        plt.plot(
+            group["trial_number"],
+            group["mean_full_mt"],
+            marker="o",
+            linewidth=1.5,
+            label=f"{participant_id} / {condition}",
+        )
+    plt.plot(
+        mean_full_mt_block["trial_number"],
+        mean_full_mt_block["mean_full_mt"],
+        marker="o",
+        linewidth=3,
+        color="red",
+        label="Overall mean",
+    )
+    plt.xlabel("Trial number")
+    plt.ylabel("Mean full MT [ms]")
+    plt.title("Mean full MT [ms] by participant with overall mean")
+    plt.legend()
+    plt.grid(True)
+    save_fig(figures_dir / "mean_full_mt_by_block_all_participants.png")
+
+    return full_mt_block, mean_full_mt_block
+
+
+def make_segment_mt_outputs(
+    practice_df: pd.DataFrame, block_size: int, figures_dir: Path, tables_dir: Path
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    segment_df = practice_df.copy()
+    for column in ["mtMs", "coreEntryMs", "coreExitMs", "coreMtMs"]:
+        segment_df[column] = pd.to_numeric(segment_df[column], errors="coerce")
+
+    valid_mask = (
+        segment_df[["mtMs", "coreEntryMs", "coreExitMs", "coreMtMs"]].notna().all(axis=1)
+        & (segment_df["coreEntryMs"] >= 0)
+        & (segment_df["coreExitMs"] >= segment_df["coreEntryMs"])
+        & (segment_df["mtMs"] >= segment_df["coreExitMs"])
+        & (segment_df["coreMtMs"] > 0)
+    )
+    segment_df = segment_df[valid_mask].copy()
+    if segment_df.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    segment_df["pre_core_mt"] = segment_df["coreEntryMs"]
+    segment_df["core_mt"] = segment_df["coreMtMs"]
+    segment_df["post_core_mt"] = segment_df["mtMs"] - segment_df["coreExitMs"]
+    segment_df["block25"] = ((segment_df["trialInCondition"] - 1) // block_size) + 1
+
+    metrics = [
+        ("pre_core_mt", "pre-core MT", "Mean pre-core MT [ms]", "mean_pre_core_mt_by_block_all_participants.png"),
+        ("core_mt", "core MT", "Mean core MT [ms]", "mean_core_mt_by_block_all_participants.png"),
+        ("post_core_mt", "post-core MT", "Mean post-core MT [ms]", "mean_post_core_mt_by_block_all_participants.png"),
+    ]
+    block_tables: list[pd.DataFrame] = []
+    mean_tables: list[pd.DataFrame] = []
+
+    for value_column, metric_label, ylabel, filename in metrics:
+        block_df = (
+            segment_df.groupby(["participant", "conditionId", "block25"])
+            .agg(
+                trial_number=("trialInCondition", "max"),
+                n=(value_column, "size"),
+                mean_mt=(value_column, "mean"),
+                sd_mt=(value_column, "std"),
+            )
+            .reset_index()
+        )
+        block_df["metric"] = metric_label
+        mean_df = (
+            block_df.groupby("block25")
+            .agg(
+                trial_number=("trial_number", "max"),
+                mean_mt=("mean_mt", "mean"),
+                sd_mt=("mean_mt", "std"),
+                n=("participant", "count"),
+            )
+            .reset_index()
+        )
+        mean_df["metric"] = metric_label
+        block_tables.append(block_df)
+        mean_tables.append(mean_df)
+
+        plt.figure(figsize=(9, 5))
+        for participant_id, group in block_df.groupby("participant"):
+            condition = group["conditionId"].iloc[0]
+            plt.plot(
+                group["trial_number"],
+                group["mean_mt"],
+                marker="o",
+                linewidth=1.5,
+                label=f"{participant_id} / {condition}",
+            )
+        plt.plot(
+            mean_df["trial_number"],
+            mean_df["mean_mt"],
+            marker="o",
+            linewidth=3,
+            color="red",
+            label="Overall mean",
+        )
+        plt.xlabel("Trial number")
+        plt.ylabel(ylabel)
+        plt.title(f"{ylabel} by participant with overall mean")
+        plt.legend()
+        plt.grid(True)
+        save_fig(figures_dir / filename)
+
+    segment_block_df = pd.concat(block_tables, ignore_index=True)
+    mean_segment_block_df = pd.concat(mean_tables, ignore_index=True)
+    save_df(segment_block_df, tables_dir / "segment_mt_by_block.csv")
+    save_df(mean_segment_block_df, tables_dir / "mean_segment_mt_by_block.csv")
+
+    return segment_block_df, mean_segment_block_df
+
+
 def make_error_outputs(
     practice_df: pd.DataFrame, block_size: int, figures_dir: Path, tables_dir: Path
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -645,6 +798,32 @@ def make_error_outputs(
     plt.legend()
     plt.grid(True)
     save_fig(figures_dir / "deviation_error_rate_by_block_all_participants.png")
+
+    plt.figure(figsize=(9, 5))
+    for participant_id, group in error_rate_25.groupby("participant"):
+        condition = group["conditionId"].iloc[0]
+        plt.plot(
+            group["trial_number"],
+            group["error_rate_percent"],
+            marker="o",
+            linewidth=1.5,
+            label=f"{participant_id} / {condition}",
+        )
+    plt.plot(
+        mean_error_rate_25["trial_number"],
+        mean_error_rate_25["mean_error_rate_percent"],
+        marker="o",
+        linewidth=3,
+        color="red",
+        label="Overall mean",
+    )
+    plt.xlabel("Trial number")
+    plt.ylabel("Deviation error rate [%]")
+    plt.title("Deviation error rate by participant with overall mean")
+    plt.ylim(0, 100)
+    plt.legend()
+    plt.grid(True)
+    save_fig(figures_dir / "mean_error_rate_by_block_all_participants.png")
 
     for participant_id, group in error_rate_25.groupby("participant"):
         condition = group["conditionId"].iloc[0]
@@ -776,6 +955,401 @@ def make_tpe_outputs(
     save_fig(figures_dir / "overall_mean_tpe_by_block.png")
 
     return tpe_df_valid, tpe_block25, mean_tpe_block25
+
+
+def make_full_tpe_outputs(
+    practice_df: pd.DataFrame,
+    block_size: int,
+    diagonal_angle_deg: float,
+    figures_dir: Path,
+    tables_dir: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    full_tpe_df = practice_df.copy()
+    full_tpe_df["mtMs"] = pd.to_numeric(full_tpe_df["mtMs"], errors="coerce")
+    tpe_values = full_tpe_df.apply(
+        lambda row: calc_tpe_from_trial_flexible(row, diagonal_angle_deg, prefer_core=False),
+        axis=1,
+    )
+    full_tpe_df = pd.concat([full_tpe_df.reset_index(drop=True), tpe_values.reset_index(drop=True)], axis=1)
+    full_tpe_valid = full_tpe_df[full_tpe_df["tpe_valid"]].copy()
+
+    save_df(full_tpe_df, tables_dir / "full_tpe_all_trials.csv")
+    save_df(full_tpe_valid, tables_dir / "full_tpe_valid_trials.csv")
+
+    if full_tpe_valid.empty:
+        return full_tpe_valid, pd.DataFrame(), pd.DataFrame()
+
+    full_tpe_valid["block25"] = ((full_tpe_valid["trialInCondition"] - 1) // block_size) + 1
+    full_tpe_block = (
+        full_tpe_valid.groupby(["participant", "conditionId", "block25"])
+        .agg(
+            trial_number=("trialInCondition", "max"),
+            n=("TPe", "size"),
+            mean_TPe=("TPe", "mean"),
+            median_TPe=("TPe", "median"),
+            sd_TPe=("TPe", "std"),
+            mean_Ae=("Ae", "mean"),
+            mean_We=("We", "mean"),
+            mean_IDe=("IDe", "mean"),
+            mean_full_mt=("mtMs", "mean"),
+        )
+        .reset_index()
+    )
+    mean_full_tpe_block = (
+        full_tpe_block.groupby("block25")
+        .agg(
+            trial_number=("trial_number", "max"),
+            mean_TPe=("mean_TPe", "mean"),
+            sd_TPe=("mean_TPe", "std"),
+            n=("participant", "count"),
+        )
+        .reset_index()
+    )
+    save_df(full_tpe_block, tables_dir / "full_tpe_by_block.csv")
+    save_df(mean_full_tpe_block, tables_dir / "mean_full_tpe_by_block.csv")
+
+    plt.figure(figsize=(9, 5))
+    for participant_id, group in full_tpe_block.groupby("participant"):
+        condition = group["conditionId"].iloc[0]
+        plt.plot(
+            group["trial_number"],
+            group["mean_TPe"],
+            marker="o",
+            linewidth=1.5,
+            label=f"{participant_id} / {condition}",
+        )
+    plt.plot(
+        mean_full_tpe_block["trial_number"],
+        mean_full_tpe_block["mean_TPe"],
+        marker="o",
+        linewidth=3,
+        color="red",
+        label="Overall mean",
+    )
+    plt.xlabel("Trial number")
+    plt.ylabel("Mean full-trajectory TPe [1/s]")
+    plt.title("Mean full-trajectory TPe [1/s] by participant with overall mean")
+    plt.legend()
+    plt.grid(True)
+    save_fig(figures_dir / "mean_full_tpe_by_block_all_participants.png")
+
+    return full_tpe_valid, full_tpe_block, mean_full_tpe_block
+
+
+def make_hundred_trial_window_outputs(
+    practice_df: pd.DataFrame,
+    tpe_df_valid: pd.DataFrame,
+    figures_dir: Path,
+    tables_dir: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    metric_frames: list[pd.DataFrame] = []
+
+    mt_df = practice_df.copy()
+    mt_df["value"] = pd.to_numeric(mt_df["analysis_mt"], errors="coerce")
+    mt_df["metric"] = "core_mt"
+    mt_df["metric_label"] = "Core MT (ID001: full MT)"
+    mt_df["ylabel"] = "Mean core MT [ms]"
+    mt_df["filename_prefix"] = "core_mt"
+    metric_frames.append(
+        mt_df[["participant", "conditionId", "trialInCondition", "value", "metric", "metric_label", "ylabel", "filename_prefix"]]
+    )
+
+    error_df = practice_df.copy()
+    error_df["value"] = bool_series(error_df["deviated"], default=False).astype(float) * 100
+    error_df["metric"] = "error_rate"
+    error_df["metric_label"] = "Error rate"
+    error_df["ylabel"] = "Error rate [%]"
+    error_df["filename_prefix"] = "error_rate"
+    metric_frames.append(
+        error_df[
+            ["participant", "conditionId", "trialInCondition", "value", "metric", "metric_label", "ylabel", "filename_prefix"]
+        ]
+    )
+
+    throughput_df = tpe_df_valid.copy()
+    throughput_df["value"] = pd.to_numeric(throughput_df["TPe"], errors="coerce")
+    throughput_df["metric"] = "throughput"
+    throughput_df["metric_label"] = "Throughput"
+    throughput_df["ylabel"] = "Mean throughput TPe [1/s]"
+    throughput_df["filename_prefix"] = "throughput"
+    metric_frames.append(
+        throughput_df[
+            ["participant", "conditionId", "trialInCondition", "value", "metric", "metric_label", "ylabel", "filename_prefix"]
+        ]
+    )
+
+    plot_source = pd.concat(metric_frames, ignore_index=True)
+    plot_source["trialInCondition"] = pd.to_numeric(plot_source["trialInCondition"], errors="coerce")
+    plot_source = plot_source[plot_source["trialInCondition"].notna() & plot_source["value"].notna()].copy()
+    if plot_source.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    windows = [(1, 100), (101, 200), (201, 300), (301, 400)]
+    participant_tables: list[pd.DataFrame] = []
+    overall_tables: list[pd.DataFrame] = []
+    axis_limit_rows: list[dict[str, object]] = []
+
+    for metric, metric_df in plot_source.groupby("metric", sort=False):
+        metric_label = metric_df["metric_label"].iloc[0]
+        ylabel = metric_df["ylabel"].iloc[0]
+        filename_prefix = metric_df["filename_prefix"].iloc[0]
+        metric_window_summaries: list[tuple[int, int, str, pd.DataFrame, pd.DataFrame]] = []
+        y_values: list[pd.Series] = []
+
+        for start, end in windows:
+            window_df = metric_df[
+                (metric_df["trialInCondition"] >= start) & (metric_df["trialInCondition"] <= end)
+            ].copy()
+            if window_df.empty:
+                continue
+
+            if metric == "error_rate":
+                window_df["plot_index"] = ((window_df["trialInCondition"] - start) // 10).astype(int) + 1
+                aggregation = "10-trial mean"
+                title_measure = "10-trial means"
+            else:
+                window_df["plot_index"] = window_df["trialInCondition"].astype(int)
+                aggregation = "single trial"
+                title_measure = "single-trial values"
+            window_df["window_start"] = start
+            window_df["window_end"] = end
+            window_df["window_label"] = f"{start}-{end}"
+
+            participant_summary = (
+                window_df.groupby(
+                    [
+                        "metric",
+                        "metric_label",
+                        "window_start",
+                        "window_end",
+                        "window_label",
+                        "participant",
+                        "conditionId",
+                        "plot_index",
+                    ]
+                )
+                .agg(
+                    trial_number=("trialInCondition", "max"),
+                    n=("value", "size"),
+                    mean_value=("value", "mean"),
+                    sd_value=("value", "std"),
+                )
+                .reset_index()
+            )
+            participant_summary["aggregation"] = aggregation
+            participant_summary["title_measure"] = title_measure
+            overall_summary = (
+                participant_summary.groupby(
+                    ["metric", "metric_label", "window_start", "window_end", "window_label", "plot_index"]
+                )
+                .agg(
+                    trial_number=("trial_number", "max"),
+                    n=("participant", "count"),
+                    mean_value=("mean_value", "mean"),
+                    sd_value=("mean_value", "std"),
+                )
+                .reset_index()
+            )
+            overall_summary["aggregation"] = aggregation
+            overall_summary["title_measure"] = title_measure
+            participant_tables.append(participant_summary)
+            overall_tables.append(overall_summary)
+            metric_window_summaries.append((start, end, title_measure, participant_summary, overall_summary))
+            y_values.extend([participant_summary["mean_value"], overall_summary["mean_value"]])
+
+        if not metric_window_summaries:
+            continue
+
+        finite_values = pd.concat(y_values, ignore_index=True)
+        finite_values = finite_values[np.isfinite(finite_values)]
+        if finite_values.empty:
+            continue
+
+        y_min = float(finite_values.min())
+        y_max = float(finite_values.max())
+        y_span = y_max - y_min
+        y_pad = y_span * 0.05 if y_span > 0 else max(abs(y_max) * 0.05, 1.0)
+        y_lower = y_min - y_pad
+        y_upper = y_max + y_pad
+        if metric == "error_rate":
+            y_lower = max(0.0, y_lower)
+            y_upper = min(100.0, y_upper)
+        axis_limit_rows.append(
+            {
+                "metric": metric,
+                "metric_label": metric_label,
+                "data_min": y_min,
+                "data_max": y_max,
+                "axis_min": y_lower,
+                "axis_max": y_upper,
+            }
+        )
+
+        for start, end, title_measure, participant_summary, overall_summary in metric_window_summaries:
+            plt.figure(figsize=(9, 5))
+            for participant_id, group in participant_summary.groupby("participant"):
+                condition = group["conditionId"].iloc[0]
+                plt.plot(
+                    group["trial_number"],
+                    group["mean_value"],
+                    marker="o",
+                    markersize=2 if metric != "error_rate" else 6,
+                    linewidth=1 if metric != "error_rate" else 1.5,
+                    label=f"{participant_id} / {condition}",
+                )
+            plt.plot(
+                overall_summary["trial_number"],
+                overall_summary["mean_value"],
+                marker="o",
+                markersize=3 if metric != "error_rate" else 6,
+                linewidth=2 if metric != "error_rate" else 3,
+                color="red",
+                label="Overall mean",
+            )
+            plt.xlabel("Trial number")
+            plt.ylabel(ylabel)
+            plt.title(f"{metric_label}: {title_measure} in trials {start}-{end}")
+            plt.ylim(y_lower, y_upper)
+            plt.legend()
+            plt.grid(True)
+            save_fig(figures_dir / f"{filename_prefix}_trials_{start:03d}_{end:03d}_10trial_mean.png")
+
+    participant_df = pd.concat(participant_tables, ignore_index=True) if participant_tables else pd.DataFrame()
+    overall_df = pd.concat(overall_tables, ignore_index=True) if overall_tables else pd.DataFrame()
+    save_df(participant_df, tables_dir / "hundred_trial_10trial_summary.csv")
+    save_df(overall_df, tables_dir / "hundred_trial_10trial_overall_summary.csv")
+    save_df(participant_df, tables_dir / "hundred_trial_window_summary.csv")
+    save_df(overall_df, tables_dir / "hundred_trial_window_overall_summary.csv")
+    save_df(pd.DataFrame(axis_limit_rows), tables_dir / "hundred_trial_10trial_axis_limits.csv")
+
+    return participant_df, overall_df
+
+
+def make_hundred_trial_mean_progression_outputs(
+    practice_df: pd.DataFrame,
+    tpe_df_valid: pd.DataFrame,
+    figures_dir: Path,
+    tables_dir: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    metric_frames: list[pd.DataFrame] = []
+
+    mt_df = practice_df.copy()
+    mt_df["value"] = pd.to_numeric(mt_df["analysis_mt"], errors="coerce")
+    mt_df["metric"] = "mt"
+    mt_df["metric_label"] = "MT (ID001: full MT, others: core MT)"
+    mt_df["ylabel"] = "Mean MT [ms]"
+    mt_df["filename"] = "hundred_trial_mean_mt_progression.png"
+    metric_frames.append(
+        mt_df[["participant", "conditionId", "trialInCondition", "value", "metric", "metric_label", "ylabel", "filename"]]
+    )
+
+    tpe_df = tpe_df_valid.copy()
+    tpe_df["value"] = pd.to_numeric(tpe_df["TPe"], errors="coerce")
+    tpe_df["metric"] = "throughput"
+    tpe_df["metric_label"] = "Throughput TPe"
+    tpe_df["ylabel"] = "Mean TPe [1/s]"
+    tpe_df["filename"] = "hundred_trial_mean_tpe_progression.png"
+    metric_frames.append(
+        tpe_df[["participant", "conditionId", "trialInCondition", "value", "metric", "metric_label", "ylabel", "filename"]]
+    )
+
+    plot_source = pd.concat(metric_frames, ignore_index=True)
+    plot_source["trialInCondition"] = pd.to_numeric(plot_source["trialInCondition"], errors="coerce")
+    plot_source = plot_source[plot_source["trialInCondition"].notna() & plot_source["value"].notna()].copy()
+    if plot_source.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    plot_source["hundred_trial_block"] = ((plot_source["trialInCondition"] - 1) // 100).astype(int) + 1
+    plot_source = plot_source[plot_source["hundred_trial_block"].between(1, 4)].copy()
+    plot_source["window_start"] = (plot_source["hundred_trial_block"] - 1) * 100 + 1
+    plot_source["window_end"] = plot_source["hundred_trial_block"] * 100
+    plot_source["window_label"] = plot_source["window_start"].astype(str) + "-" + plot_source["window_end"].astype(str)
+    if plot_source.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    participant_summary = (
+        plot_source.groupby(
+            [
+                "metric",
+                "metric_label",
+                "ylabel",
+                "filename",
+                "hundred_trial_block",
+                "window_start",
+                "window_end",
+                "window_label",
+                "participant",
+                "conditionId",
+            ]
+        )
+        .agg(
+            trial_number=("trialInCondition", "max"),
+            n=("value", "size"),
+            mean_value=("value", "mean"),
+            sd_value=("value", "std"),
+        )
+        .reset_index()
+    )
+    participant_summary["aggregation"] = "100-trial mean"
+
+    overall_summary = (
+        participant_summary.groupby(
+            ["metric", "metric_label", "ylabel", "filename", "hundred_trial_block", "window_start", "window_end", "window_label"]
+        )
+        .agg(
+            trial_number=("trial_number", "max"),
+            n=("participant", "count"),
+            mean_value=("mean_value", "mean"),
+            sd_value=("mean_value", "std"),
+        )
+        .reset_index()
+    )
+    overall_summary["aggregation"] = "100-trial mean"
+
+    for metric, metric_summary in participant_summary.groupby("metric", sort=False):
+        metric_overall = overall_summary[overall_summary["metric"] == metric]
+        metric_label = metric_summary["metric_label"].iloc[0]
+        ylabel = metric_summary["ylabel"].iloc[0]
+        filename = metric_summary["filename"].iloc[0]
+
+        y_values = pd.concat([metric_summary["mean_value"], metric_overall["mean_value"]], ignore_index=True)
+        y_values = y_values[np.isfinite(y_values)]
+        y_min = float(y_values.min())
+        y_max = float(y_values.max())
+        y_span = y_max - y_min
+        y_pad = y_span * 0.05 if y_span > 0 else max(abs(y_max) * 0.05, 1.0)
+
+        plt.figure(figsize=(9, 5))
+        for participant_id, group in metric_summary.groupby("participant"):
+            condition = group["conditionId"].iloc[0]
+            plt.plot(
+                group["window_end"],
+                group["mean_value"],
+                marker="o",
+                linewidth=1.5,
+                label=f"{participant_id} / {condition}",
+            )
+        plt.plot(
+            metric_overall["window_end"],
+            metric_overall["mean_value"],
+            marker="o",
+            linewidth=3,
+            color="red",
+            label="Overall mean",
+        )
+        plt.xlabel("Trial number")
+        plt.ylabel(ylabel)
+        plt.title(f"{metric_label}: 100-trial mean progression")
+        plt.ylim(y_min - y_pad, y_max + y_pad)
+        plt.xticks([100, 200, 300, 400])
+        plt.legend()
+        plt.grid(True)
+        save_fig(figures_dir / filename)
+
+    save_df(participant_summary, tables_dir / "hundred_trial_mean_progression_summary.csv")
+    save_df(overall_summary, tables_dir / "hundred_trial_mean_progression_overall_summary.csv")
+
+    return participant_summary, overall_summary
 
 
 def make_learning_curve_outputs(
@@ -949,10 +1523,15 @@ def run_analysis(args: argparse.Namespace) -> int:
 
     plot_mt_by_participant(practice_df, figures_dir)
     make_mt_outputs(practice_df, args.block_size, figures_dir, tables_dir)
+    make_full_mt_outputs(practice_df, args.block_size, figures_dir, tables_dir)
+    make_segment_mt_outputs(practice_df, args.block_size, figures_dir, tables_dir)
     make_error_outputs(practice_df, args.block_size, figures_dir, tables_dir)
     tpe_valid_trials, _, _ = make_tpe_outputs(
         practice_df, args.block_size, args.diagonal_angle_deg, figures_dir, tables_dir
     )
+    make_hundred_trial_window_outputs(practice_df, tpe_valid_trials, figures_dir, tables_dir)
+    make_hundred_trial_mean_progression_outputs(practice_df, tpe_valid_trials, figures_dir, tables_dir)
+    make_full_tpe_outputs(practice_df, args.block_size, args.diagonal_angle_deg, figures_dir, tables_dir)
     fit_results = make_learning_curve_outputs(practice_df, tpe_valid_trials, args.block_size, figures_dir, tables_dir)
 
     write_summary(output_dir, raw_summary, practice_df, excluded_trials, tpe_valid_trials, fit_results, args)

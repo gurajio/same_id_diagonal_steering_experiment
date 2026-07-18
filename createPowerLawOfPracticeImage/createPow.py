@@ -21,9 +21,9 @@ fig, ax = plt.subplots(figsize=(6, 4))
 # Nが1変化するごとに点をプロット
 ax.plot(N, T, marker="o", markersize=2, linewidth=1.5)
 
-# 軸ラベルのみ
-ax.set_xlabel("Trial number N")
-ax.set_ylabel("Task completion time(seconds)")
+# 軸ラベル（単位付き）
+ax.set_xlabel("Trial number, N (trials)")
+ax.set_ylabel("Task completion time, T (s)")
 
 # 余計な要素を消す
 ax.grid(False)

@@ -1,2 +1,5 @@
 ﻿condition_number,condition,condition_label,n_trials,n_deviation_error_text,n_excessive_deviation_error_text,n_deviated_true,n_excluded_by_deviation_ratio,deviation_ratio_exclusion_threshold,max_deviation_time_ratio,mean_deviation_time_ratio
-1,width_wide,Wide-width A1000 W50 ID20 / C1,325,99,37,183,0,0.8,0.7560192616372392,0.16871393247837063
+1,width_wide,Wide-width A1000 W50 ID20 / C1,300,116,28,176,1,0.8,0.8073217726396917,0.1629549186690549
+2,width_narrow,Narrow-width A1000 W20 ID50 / C2,300,176,2,250,0,0.8,0.7508650519031141,0.22241071229158602
+3,length_long,Long-distance A1500 W30 ID50 / C3,300,143,10,244,1,0.8,0.8524590163934426,0.2149069372411176
+4,length_short,Short-distance A600 W30 ID20 / C4,300,87,5,113,0,0.8,0.7971473851030111,0.07811609382047792
