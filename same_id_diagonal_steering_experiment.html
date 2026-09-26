@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>同一ID斜め直線ステアリング課題 実験システム</title>
+    <title>同一ID水平直線ステアリング課題 実験システム</title>
     <script src="steering_experiment_config.js"></script>
     <style>
       :root {
@@ -661,9 +661,9 @@
       <section id="startScreen" class="start-screen">
         <div class="start-layout">
           <section class="start-panel" aria-labelledby="startTitle">
-            <h1 id="startTitle">同一ID斜め直線ステアリング課題</h1>
+            <h1 id="startTitle">同一ID水平直線ステアリング課題</h1>
             <p class="lead">
-              実験種別と実験条件を選び，選択した条件をC1からC4の順に提示します。
+              実験種別と実験条件を選び，選択した条件をC1からC3の順に提示します。
             </p>
             <form id="participantForm" class="form-grid">
               <div class="field">
@@ -709,7 +709,7 @@
             <h2 id="briefingTitle">実験前説明</h2>
             <ol class="briefing-list">
               <li>START領域内でポインタを押すと計測が始まります。</li>
-              <li>表示された斜め直線の通路に沿ってEND領域まで移動し，END領域内でポインタを離してください。</li>
+              <li>表示された水平直線の通路に沿ってEND領域まで移動し，END領域内でポインタを離してください。</li>
               <li>通路からはみ出しても試行は継続し，逸脱情報が記録されます。</li>
               <li>途中でポインタを離した場合は，同じ試行をやり直します。</li>
               <li>ゴール直前でポインタを離した場合は，分析対象エラーとして記録されます。</li>
@@ -778,7 +778,7 @@
 
           <section class="stage">
             <div class="canvas-shell">
-              <canvas id="taskCanvas" aria-label="斜め直線ステアリング課題キャンバス"></canvas>
+              <canvas id="taskCanvas" aria-label="水平直線ステアリング課題キャンバス"></canvas>
             </div>
             <div id="messageBar" class="message-bar" data-tone="info">
               START領域内で押して，END領域内でポインタを離してください。

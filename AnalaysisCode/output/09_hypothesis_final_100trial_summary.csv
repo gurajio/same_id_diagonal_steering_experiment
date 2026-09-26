@@ -1,5 +1,3 @@
-﻿condition,condition_label,ID_group,MT_mean,TPe_mean,ER_mean
-width_wide,Wide-width A1000 W50 ID20 / C1,ID20,0.6992068965517242,47.72643472094711,59.0
-width_narrow,Narrow-width A1000 W20 ID50 / C2,ID50,1.4597121212121211,40.75122219687782,78.0
-length_long,Long-distance A1500 W30 ID50 / C3,ID50,1.4213970588235294,38.277130091815856,79.0
-length_short,Short-distance A600 W30 ID20 / C4,ID20,0.6331046511627907,67.5281092540827,44.0
+﻿condition,condition_label,ID_group,binStart,binEnd,n_trials,MT_mean,TPe_mean,ER_mean
+length_long,Long-distance A810 W30 ID27 / C2,ID27,101,200,100,0.3951212121212121,222.4618239978446,7.000000000000001
+width_narrow,Narrow-width A540 W20 ID27 / C3,ID27,201,300,7,0.362,257.3987304072424,0.0

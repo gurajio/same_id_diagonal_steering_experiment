@@ -7,33 +7,25 @@
       id: "C1",
       name: "幅広条件",
       label: "A固定・W広い",
-      amplitude: 1050,
+      amplitude: 540,
       width: 30,
-      trials: 400
+      trials: 200
     },
     {
       id: "C2",
-      name: "幅狭条件",
-      label: "A固定・W狭い",
-      amplitude: 1050,
-      width: 21,
-      trials: 400
+      name: "距離長条件",
+      label: "W固定・A長い",
+      amplitude: 810,
+      width: 30,
+      trials: 200
     },
     {
       id: "C3",
-      name: "距離大条件",
-      label: "W固定・A長い",
-      amplitude: 1250,
-      width: 25,
-      trials: 400
-    },
-    {
-      id: "C4",
-      name: "距離小条件",
-      label: "W固定・A短い",
-      amplitude: 875,
-      width: 25,
-      trials: 400
+      name: "幅狭条件",
+      label: "A固定・W狭い",
+      amplitude: 540,
+      width: 20,
+      trials: 200
     }
   ];
 
@@ -51,12 +43,12 @@
   const postTrialTotal = conditions.length * postTrialsPerCondition;
 
   window.SteeringExperimentConfig = Object.freeze({
-    appName: "同一ID斜め直線ステアリング課題実験システム",
+    appName: "同一ID水平直線ステアリング課題実験システム",
     appVersion: "1.0.0",
 
-    practiceTrials: 400,
+    practiceTrials: 200,
     postTrials: postTrialTotal,
-    pilotTrials: 400,
+    pilotTrials: 200,
     // 本実験で休憩画面を表示する間隔。0以下なら休憩なし。
     breakInterval: 100,
     // 予備実験で任意停止画面を表示する間隔。0以下なら停止なし。
@@ -68,7 +60,7 @@
         id: "main",
         name: "本実験",
         description: "反復試行から事後試行まで実施する",
-        practiceTrials: 400,
+        practiceTrials: 200,
         postTrials: postTrialTotal,
         hasPostPhase: true,
         scheduledBreak: true
@@ -77,7 +69,7 @@
         id: "pilot",
         name: "予備実験",
         description: "選択した反復条件を設定試行数ずつ実施する",
-        trials: 400,
+        trials: 200,
         hasPostPhase: false,
         scheduledBreak: false,
         manualPause: true
@@ -86,7 +78,7 @@
 
     assignment: Object.freeze({
       method: "manual-condition-toggle",
-      description: "開始画面で選択した条件をC1からC4の順に提示する",
+      description: "開始画面で選択した条件をC1からC3の順に提示する",
       fallbackConditionId: "C1"
     }),
 
@@ -96,7 +88,7 @@
     }),
 
     display: Object.freeze({
-      diagonalAngleDeg: 30,
+      diagonalAngleDeg: 0,
       marginPx: 88,
       movementAreaPx: 200,
       minEndpointLengthPx: 40,
