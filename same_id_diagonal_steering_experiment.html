@@ -247,6 +247,11 @@
         box-shadow: inset 0 0 0 1px var(--primary);
       }
 
+      .mode-option input:disabled + .mode-card {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
       .form-error {
         margin: 0;
         color: var(--red);
@@ -663,7 +668,7 @@
           <section class="start-panel" aria-labelledby="startTitle">
             <h1 id="startTitle">同一ID斜め直線ステアリング課題</h1>
             <p class="lead">
-              実験種別と実験条件を選び，選択した条件をC1からC4の順に提示します。
+              実験種別と実験条件を選び，複数条件では提示方法も指定できます。
             </p>
             <form id="participantForm" class="form-grid">
               <div class="field">
@@ -691,6 +696,36 @@
                 <p id="conditionSelectionError" class="form-error hidden">
                   実験条件を1つ以上選択してください。
                 </p>
+              </div>
+              <div id="conditionOrderField" class="field hidden">
+                <label>条件の提示方法</label>
+                <div class="mode-toggle" role="radiogroup" aria-label="条件の提示方法">
+                  <label class="mode-option">
+                    <input
+                      id="conditionOrderSequential"
+                      type="radio"
+                      name="conditionOrderMode"
+                      value="sequential"
+                      checked
+                    />
+                    <span class="mode-card">
+                      <b>条件ごと（C番号順）</b>
+                      <span>C1から順に各条件の全試行を提示</span>
+                    </span>
+                  </label>
+                  <label class="mode-option">
+                    <input
+                      id="conditionOrderRandom"
+                      type="radio"
+                      name="conditionOrderMode"
+                      value="random"
+                    />
+                    <span class="mode-card">
+                      <b>試行ごとにランダム</b>
+                      <span>毎試行の条件を参加者IDから決定</span>
+                    </span>
+                  </label>
+                </div>
               </div>
               <div class="field">
                 <label for="participantId">参加者ID</label>
@@ -838,6 +873,7 @@
         const CSV_COLUMNS = [
           "participantId",
           "experimentMode",
+          "conditionOrderMode",
           "phase",
           "conditionId",
           "conditionName",
@@ -896,6 +932,9 @@
           participant: null,
           assignedCondition: null,
           selectedConditions: [],
+          conditionOrderMode: "sequential",
+          practiceSequence: [],
+          pilotSequence: [],
           postSequence: [],
           practiceConditionIndex: 0,
           practiceConditionCompleted: 0,
@@ -928,6 +967,9 @@
             "includePostTrials",
             "conditionToggleGroup",
             "conditionSelectionError",
+            "conditionOrderField",
+            "conditionOrderSequential",
+            "conditionOrderRandom",
             "participantId",
             "modeChip",
             "phaseChip",
@@ -1144,6 +1186,67 @@
           return Config.conditions.filter((condition) => selected.has(condition.id));
         }
 
+        function selectedConditionOrderMode() {
+          const formData = new FormData(elements.participantForm);
+          return formData.get("conditionOrderMode") === "random"
+            ? "random"
+            : "sequential";
+        }
+
+        function syncConditionOrderOption() {
+          const enabled = selectedConditionIds().length > 1;
+          elements.conditionOrderField.classList.toggle("hidden", !enabled);
+          elements.conditionOrderSequential.disabled = !enabled;
+          elements.conditionOrderRandom.disabled = !enabled;
+          if (!enabled) {
+            elements.conditionOrderSequential.checked = true;
+          }
+        }
+
+        function phaseTrialSequence(phase) {
+          if (phase === "practice") {
+            return state.practiceSequence;
+          }
+          if (phase === "pilot") {
+            return state.pilotSequence;
+          }
+          return [];
+        }
+
+        function isRandomTrialOrder(phase) {
+          return (
+            (phase === "practice" || phase === "pilot") &&
+            state.conditionOrderMode === "random"
+          );
+        }
+
+        function buildRandomizedTrialSequence(conditions, phase, participantId) {
+          const mode = modeConfig();
+          const fallback =
+            phase === "pilot"
+              ? mode.trials || Config.pilotTrials
+              : mode.practiceTrials || Config.practiceTrials;
+          const pool = [];
+          conditions.forEach((condition) => {
+            const trials = configuredTrialCount(condition, fallback);
+            for (let i = 0; i < trials; i += 1) {
+              pool.push(condition);
+            }
+          });
+          const shuffled = seededShuffle(pool, `${participantId}-${phase}-trial-order`);
+          const countsByCondition = new Map();
+          return shuffled.map((condition, index) => {
+            const trialInCondition =
+              (countsByCondition.get(condition.id) || 0) + 1;
+            countsByCondition.set(condition.id, trialInCondition);
+            return {
+              ...condition,
+              randomizedTrialInCondition: trialInCondition,
+              randomizedTrialOrder: index + 1
+            };
+          });
+        }
+
         function conditionQueue() {
           return state.selectedConditions.length
             ? state.selectedConditions
@@ -1161,6 +1264,15 @@
         }
 
         function phaseConditionCompleted(phase) {
+          if (isRandomTrialOrder(phase)) {
+            const sequence = phaseTrialSequence(phase);
+            const condition =
+              sequence[phaseCompleted(phase)] || sequence[sequence.length - 1];
+            return Math.max(
+              0,
+              Number(condition?.randomizedTrialInCondition || 1) - 1
+            );
+          }
           if (phase === "pilot") {
             return state.pilotConditionCompleted;
           }
@@ -1210,6 +1322,9 @@
         }
 
         function queuedTrialTotal(phase) {
+          if (isRandomTrialOrder(phase)) {
+            return phaseTrialSequence(phase).length;
+          }
           const mode = modeConfig();
           const fallback =
             phase === "pilot"
@@ -1341,6 +1456,15 @@
         function currentCondition() {
           const phase = activePhase();
           if (phase === "practice" || phase === "pilot") {
+            if (isRandomTrialOrder(phase)) {
+              const sequence = phaseTrialSequence(phase);
+              return (
+                sequence[phaseCompleted(phase)] ||
+                sequence[sequence.length - 1] ||
+                state.selectedConditions[0] ||
+                Config.conditions[0]
+              );
+            }
             const queue = conditionQueue();
             return (
               queue[phaseConditionIndex(phase)] ||
@@ -1849,11 +1973,22 @@
                 appName: Config.appName,
                 appVersion: Config.appVersion,
                 experimentMode: state.mode,
+                conditionOrderMode: state.conditionOrderMode,
                 experimentModeConfig: modeConfig(),
                 participant: state.participant,
                 assignment: Config.assignment,
                 assignedCondition: state.assignedCondition,
                 selectedConditions: state.selectedConditions,
+                practiceSequence: state.practiceSequence.map((condition) => ({
+                  order: condition.randomizedTrialOrder,
+                  conditionId: condition.id,
+                  trialInCondition: condition.randomizedTrialInCondition
+                })),
+                pilotSequence: state.pilotSequence.map((condition) => ({
+                  order: condition.randomizedTrialOrder,
+                  conditionId: condition.id,
+                  trialInCondition: condition.randomizedTrialInCondition
+                })),
                 practiceTrials: phaseTrialTotal("practice"),
                 postTrials: phaseTrialTotal("post"),
                 pilotTrials: phaseTrialTotal("pilot"),
@@ -2079,6 +2214,7 @@
           elements.participantForm.reset();
           renderConditionChoices();
           syncPostTrialOption();
+          syncConditionOrderOption();
           elements.conditionSelectionError.classList.add("hidden");
         }
 
@@ -2091,6 +2227,9 @@
           state.participant = null;
           state.assignedCondition = null;
           state.selectedConditions = [];
+          state.conditionOrderMode = "sequential";
+          state.practiceSequence = [];
+          state.pilotSequence = [];
           state.postSequence = [];
           state.practiceConditionIndex = 0;
           state.practiceConditionCompleted = 0;
@@ -2325,18 +2464,41 @@
             return;
           }
           const participantId = elements.participantId.value.trim();
-          const selectedConditions = conditionsFromIds(selectedConditionIds());
+          const selectedConditionsInNumberOrder = conditionsFromIds(selectedConditionIds());
+          const conditionOrderMode =
+            selectedConditionsInNumberOrder.length > 1
+              ? selectedConditionOrderMode()
+              : "sequential";
+          const selectedConditions = selectedConditionsInNumberOrder;
           elements.conditionSelectionError.classList.add("hidden");
           state.mode = selectedModeId();
           const mode = modeConfig();
           state.participant = {
             participantId,
-            experimentMode: state.mode
+            experimentMode: state.mode,
+            conditionOrderMode
           };
           state.includePostTrials = shouldIncludePostTrials();
           state.selectedConditions = selectedConditions;
+          state.conditionOrderMode = conditionOrderMode;
           state.assignedCondition =
             selectedConditions[0] || selectAssignedCondition(participantId);
+          state.practiceSequence =
+            state.mode === "main" && conditionOrderMode === "random"
+              ? buildRandomizedTrialSequence(
+                  selectedConditions,
+                  "practice",
+                  participantId
+                )
+              : [];
+          state.pilotSequence =
+            state.mode === "pilot" && conditionOrderMode === "random"
+              ? buildRandomizedTrialSequence(
+                  selectedConditions,
+                  "pilot",
+                  participantId
+                )
+              : [];
           state.postSequence = mode.hasPostPhase && state.includePostTrials
             ? buildPostSequence(participantId)
             : [];
@@ -2393,7 +2555,9 @@
           }
           const phase = activePhase();
           const trialInPhase = phaseCompleted(phase) + 1;
-          const trialInCurrentCondition = phaseConditionCompleted(phase) + 1;
+          const trialInCurrentCondition =
+            condition.randomizedTrialInCondition ||
+            phaseConditionCompleted(phase) + 1;
           state.activeTrial = {
             phase,
             condition,
@@ -2407,7 +2571,7 @@
             conditionOrder:
               phase === "post"
                 ? condition.selectedOrder || state.postCompleted + 1
-                : phaseConditionIndex(phase) + 1,
+                : condition.randomizedTrialOrder || phaseConditionIndex(phase) + 1,
             startedPerf: performance.now(),
             startedAtIso: nowIso(),
             coreEntryMs: null,
@@ -2596,6 +2760,8 @@
           return {
             participantId: participant.participantId,
             experimentMode: participant.experimentMode,
+            conditionOrderMode:
+              trial.phase === "post" ? "random" : participant.conditionOrderMode,
             phase: trial.phase,
             conditionId: condition.id,
             conditionName: condition.name,
@@ -2636,12 +2802,17 @@
             return;
           }
 
+          const randomTrialOrder = isRandomTrialOrder(phase);
           const completed = phaseCompleted(phase) + 1;
-          const conditionCompleted = phaseConditionCompleted(phase) + 1;
+          const conditionCompleted = randomTrialOrder
+            ? Number(currentCondition()?.randomizedTrialInCondition || 1)
+            : phaseConditionCompleted(phase) + 1;
           const total = phaseTrialTotal(phase);
           const conditionTotal = phaseConditionTotal(phase);
           setPhaseCompleted(phase, completed);
-          setPhaseConditionCompleted(phase, conditionCompleted);
+          if (!randomTrialOrder) {
+            setPhaseConditionCompleted(phase, conditionCompleted);
+          }
           state.countedTotal += 1;
 
           if (completed >= total) {
@@ -2651,16 +2822,19 @@
 
           if (
             (phase === "practice" || phase === "pilot") &&
+            !randomTrialOrder &&
             conditionCompleted >= conditionTotal
           ) {
             advanceToNextSelectedCondition(phase);
             return;
           }
 
+          const pauseProgress = randomTrialOrder ? completed : conditionCompleted;
+
           if (
             shouldUseScheduledBreak(phase) &&
             breakIntervalForPhase(phase) > 0 &&
-            conditionCompleted % breakIntervalForPhase(phase) === 0
+            pauseProgress % breakIntervalForPhase(phase) === 0
           ) {
             startBreak(phase, true);
             return;
@@ -2670,7 +2844,7 @@
             phase === "pilot" &&
             modeConfig().manualPause &&
             breakIntervalForPhase(phase) > 0 &&
-            conditionCompleted % breakIntervalForPhase(phase) === 0
+            pauseProgress % breakIntervalForPhase(phase) === 0
           ) {
             startBreak(
               phase,
@@ -3017,6 +3191,7 @@
             if (selectedConditionIds().length > 0) {
               elements.conditionSelectionError.classList.add("hidden");
             }
+            syncConditionOrderOption();
           });
           elements.modeMain.addEventListener("change", syncPostTrialOption);
           elements.modePilot.addEventListener("change", syncPostTrialOption);
@@ -3054,6 +3229,7 @@
           collectElements();
           renderConditionChoices();
           syncPostTrialOption();
+          syncConditionOrderOption();
           bindEvents();
           updateUi();
         }

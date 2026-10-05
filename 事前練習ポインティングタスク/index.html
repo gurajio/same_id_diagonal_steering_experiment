@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>&#20107;&#21069;&#32244;&#32722;&#12509;&#12452;&#12531;&#12486;&#12451;&#12531;&#12464;&#12479;&#12473;&#12463;</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="info-panel">
+        <div class="status-card">
+          <p id="statusText" class="status-text">&#38738;&#12356;&#20870;&#12434;&#12463;&#12522;&#12483;&#12463;&#12375;&#12390;&#32244;&#32722;&#12434;&#22987;&#12417;&#12390;&#12367;&#12384;&#12373;&#12356;&#12290;</p>
+
+          <div class="stats-grid">
+            <article class="stat-box">
+              <span class="stat-label">&#35430;&#34892;&#25968;</span>
+              <strong id="stepValue" class="stat-value">0 / 0</strong>
+            </article>
+            <article class="stat-box">
+              <span class="stat-label">&#27491;&#35299;&#25968;</span>
+              <strong id="hitValue" class="stat-value">0</strong>
+            </article>
+            <article class="stat-box">
+              <span class="stat-label">&#12511;&#12473;&#25968;</span>
+              <strong id="missValue" class="stat-value">0</strong>
+            </article>
+            <article class="stat-box">
+              <span class="stat-label">&#21608;&#22238;&#25968;</span>
+              <strong id="lapValue" class="stat-value">0</strong>
+            </article>
+            <article class="stat-box stat-box-wide">
+              <span class="stat-label">&#32076;&#36942;&#26178;&#38291;</span>
+              <strong id="timeValue" class="stat-value">0.0 &#31186;</strong>
+            </article>
+          </div>
+
+          <div class="actions">
+            <button id="fullscreenButton" class="ghost-button primary-button" type="button">
+              &#20840;&#30011;&#38754;&#34920;&#31034;
+            </button>
+            <button id="resetButton" class="ghost-button" type="button">
+              &#26368;&#21021;&#12363;&#12425;&#12420;&#12426;&#30452;&#12377;
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="task-panel">
+        <div class="task-frame">
+          <div id="taskArea" class="task-area" aria-label="&#12509;&#12452;&#12531;&#12486;&#12451;&#12531;&#12464;&#12479;&#12473;&#12463;"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="../steering_experiment_config.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>
