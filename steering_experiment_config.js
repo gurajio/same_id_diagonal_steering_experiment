@@ -37,14 +37,15 @@
   }
 
   const conditions = practiceConditions.map(withSteeringId);
-  const postTrialsPerCondition = 25;
+  const postTrialsPerCondition = 30;
+  const postTrials = postTrialsPerCondition * conditions.length;
 
   window.SteeringExperimentConfig = Object.freeze({
     appName: "同一ID斜め直線ステアリング課題 実験システム",
     appVersion: "1.0.0",
 
     practiceTrials: 300,
-    postTrials: 100,
+    postTrials,
     pilotTrials: 300,
     breakInterval: 100,
     manualPauseInterval: 100,
@@ -56,7 +57,7 @@
         name: "本実験",
         description: "反復試行，事後試行まで実施する",
         practiceTrials: 300,
-        postTrials: 100,
+        postTrials,
         hasPostPhase: true,
         forcedBreak: true
       }),
@@ -105,7 +106,7 @@
     postConditionOrder: Object.freeze({
       method: "balanced-seeded-shuffle",
       description:
-        "4条件を25試行ずつ用意し，参加者IDをシードにした固定順で提示する"
+        "3条件を30試行ずつ用意し，参加者IDをシードにした固定シャッフル順で提示する"
     }),
 
     export: Object.freeze({
